@@ -12,12 +12,11 @@ const Navigation = () => {
           {/* Logo */}
           <div className="flex items-center gap-3">
             <Link to="/" className="flex items-center gap-3">
-              <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-emerald-500/20 to-emerald-600/10 flex items-center justify-center ring-1 ring-emerald-500/20 shadow-lg shadow-emerald-500/10">
-                <Zap className="h-5 w-5 text-emerald-400" />
-              </div>
-              <div className="text-xl font-semibold tracking-tight text-white font-sans">
-                Phronos
-              </div>
+              <img 
+                src="/Asset 3@4x.png" 
+                alt="Phronos Logo" 
+                className="h-10 w-auto"
+              />
             </Link>
           </div>
 
