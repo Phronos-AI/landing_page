@@ -125,10 +125,7 @@ const Pricing = () => {
                 <div className="mb-8">
                   <h3 className="text-2xl text-white mb-2 font-light tracking-tighter">{plan.name}</h3>
                   <p className="text-white/60 text-sm mb-4 font-sans">{plan.description}</p>
-                  <div className="flex items-baseline gap-2">
-                    <span className="text-3xl text-white font-light tracking-tighter">{plan.price}</span>
-                    <span className="text-white/50 text-sm font-sans">{plan.period}</span>
-                  </div>
+                  {/* Price removed by request */}
                 </div>
 
                 {/* CTA Button */}
