@@ -86,10 +86,10 @@ export function FileTree({ onFileSelect, selectedFile }: FileTreeProps) {
       <div key={node.path}>
         <div
           className={cn(
-            "flex items-center gap-2 px-2 py-1 cursor-pointer hover:bg-muted/50 rounded",
-            isSelected && "bg-muted"
+            "flex items-center gap-1 px-2 py-0.5 cursor-pointer hover:bg-sidebar-hover text-sidebar-foreground",
+            isSelected && "bg-sidebar-hover"
           )}
-          style={{ paddingLeft: `${depth * 12 + 8}px` }}
+          style={{ paddingLeft: `${depth * 16 + 4}px` }}
           onClick={() => {
             if (node.type === "directory") {
               toggleExpand(node.path);
@@ -101,16 +101,16 @@ export function FileTree({ onFileSelect, selectedFile }: FileTreeProps) {
           {node.type === "directory" ? (
             <>
               {isExpanded ? (
-                <ChevronDown className="w-4 h-4 text-muted-foreground" />
+                <ChevronDown className="w-3 h-3 text-muted-foreground" />
               ) : (
-                <ChevronRight className="w-4 h-4 text-muted-foreground" />
+                <ChevronRight className="w-3 h-3 text-muted-foreground" />
               )}
-              <Folder className="w-4 h-4 text-primary" />
+              <Folder className="w-3 h-3 text-muted-foreground" />
             </>
           ) : (
-            <File className="w-4 h-4 text-muted-foreground ml-6" />
+            <File className="w-3 h-3 text-muted-foreground ml-4" />
           )}
-          <span className="text-sm">{node.name}</span>
+          <span className="text-xs">{node.name}</span>
         </div>
         {node.type === "directory" && isExpanded && node.children && (
           <div>{node.children.map((child) => renderNode(child, depth + 1))}</div>
@@ -121,11 +121,11 @@ export function FileTree({ onFileSelect, selectedFile }: FileTreeProps) {
 
   if (tree.length === 0) {
     return (
-      <div className="p-4 text-sm text-muted-foreground">
-        No files yet. Run <code className="text-primary">phronos init</code> to start.
+      <div className="p-3 text-xs text-muted-foreground">
+        No files yet. Run <code className="text-primary text-xs">phronos init</code>
       </div>
     );
   }
 
-  return <div className="py-2">{tree.map((node) => renderNode(node))}</div>;
+  return <div className="py-1">{tree.map((node) => renderNode(node))}</div>;
 }

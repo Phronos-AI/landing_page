@@ -185,20 +185,27 @@ export function Terminal() {
 
   return (
     <div
-      className="flex flex-col h-full bg-terminal-bg text-foreground font-mono p-4 overflow-hidden"
+      className="flex flex-col h-full bg-terminal-bg text-foreground font-mono overflow-hidden"
       onClick={() => inputRef.current?.focus()}
     >
-      <div className="flex-1 overflow-y-auto space-y-1 mb-4">
+      {/* Terminal Header */}
+      <div className="flex items-center px-3 py-1 border-b border-border bg-tabBar-bg">
+        <span className="text-xs font-semibold">TERMINAL</span>
+      </div>
+
+      {/* Terminal Output */}
+      <div className="flex-1 overflow-y-auto p-3 space-y-0.5">
         {lines.map((line) => (
-          <div key={line.id} className={cn("text-sm", getLineColor(line.type))}>
+          <div key={line.id} className={cn("text-xs leading-relaxed", getLineColor(line.type))}>
             {line.text}
           </div>
         ))}
         <div ref={bottomRef} />
       </div>
 
-      <div className="flex items-center gap-2">
-        <span className="text-primary">$</span>
+      {/* Terminal Input */}
+      <div className="flex items-center gap-2 px-3 py-2 border-t border-border">
+        <span className="text-primary text-xs">$</span>
         <input
           ref={inputRef}
           type="text"
@@ -206,7 +213,7 @@ export function Terminal() {
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={handleKeyDown}
           disabled={isProcessing}
-          className="flex-1 bg-transparent outline-none text-sm"
+          className="flex-1 bg-transparent outline-none text-xs text-foreground"
           placeholder={isProcessing ? "Processing..." : "Type a command..."}
           autoFocus
         />

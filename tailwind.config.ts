@@ -59,6 +59,7 @@ export default {
           DEFAULT: "hsl(var(--sidebar-background))",
           foreground: "hsl(var(--sidebar-foreground))",
           border: "hsl(var(--sidebar-border))",
+          hover: "hsl(var(--sidebar-hover))",
         },
         terminal: {
           bg: "hsl(var(--terminal-bg))",
@@ -66,9 +67,24 @@ export default {
         code: {
           bg: "hsl(var(--code-bg))",
         },
+        tabBar: {
+          bg: "hsl(var(--tab-bar-bg))",
+          active: "hsl(var(--tab-active-bg))",
+          inactive: "hsl(var(--tab-inactive-bg))",
+        },
+        statusBar: {
+          bg: "hsl(var(--statusbar-bg))",
+        },
+        activityBar: {
+          bg: "hsl(var(--activitybar-bg))",
+        },
+        chat: {
+          bg: "hsl(var(--chat-bg))",
+        },
       },
       fontFamily: {
-        mono: ["JetBrains Mono", "Fira Code", "Consolas", "Monaco", "monospace"],
+        mono: ["'JetBrains Mono'", "Consolas", "'Courier New'", "monospace"],
+        sans: ["-apple-system", "BlinkMacSystemFont", "'Segoe UI'", "Roboto", "sans-serif"],
       },
       borderRadius: {
         lg: "var(--radius)",
