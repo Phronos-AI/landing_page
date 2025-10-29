@@ -7,12 +7,10 @@
   
   # Publish the merged homepage/dist folder (contains both homepage and /ide)
   publish = "homepage/dist"
-  
-  # Node version
-  environment = { NODE_VERSION = "18" }
 
-# Environment variables (add your actual API key in Netlify UI under Environment Variables)
+# Environment variables
 [build.environment]
+  NODE_VERSION = "18"
   # VITE_OPENROUTER_API_KEY will be set in Netlify UI for security
 
 # Redirects and rewrites for SPA routing
