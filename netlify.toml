@@ -1,0 +1,56 @@
+# Phronos Monorepo - Netlify Configuration
+# Deploys both homepage and IDE as a single project
+
+[build]
+  # Build command runs our custom script
+  command = "bash build-all.sh"
+  
+  # Publish the merged homepage/dist folder (contains both homepage and /ide)
+  publish = "homepage/dist"
+  
+  # Node version
+  environment = { NODE_VERSION = "18" }
+
+# Environment variables (add your actual API key in Netlify UI under Environment Variables)
+[build.environment]
+  # VITE_OPENROUTER_API_KEY will be set in Netlify UI for security
+
+# Redirects and rewrites for SPA routing
+[[redirects]]
+  # IDE SPA routing - all /ide/* routes serve the IDE index.html
+  from = "/ide/*"
+  to = "/ide/index.html"
+  status = 200
+
+[[redirects]]
+  # Homepage SPA routing - catch-all for React Router (homepage routes)
+  # This must come AFTER the /ide/* redirect to avoid conflicts
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
+# Headers for security and performance
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Frame-Options = "DENY"
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    Permissions-Policy = "camera=(), microphone=(), geolocation=()"
+
+[[headers]]
+  for = "/assets/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+[[headers]]
+  for = "/ide/assets/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+# Custom 404 page (optional)
+# [[redirects]]
+#   from = "/404"
+#   to = "/404.html"
+#   status = 404
+

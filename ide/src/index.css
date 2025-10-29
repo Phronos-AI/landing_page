@@ -1,0 +1,260 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
+All colors MUST be HSL.
+*/
+
+@layer base {
+  :root {
+    --background: 0 0% 0%;
+    --foreground: 0 0% 88%;
+    --card: 0 0% 0%;
+    --card-foreground: 0 0% 88%;
+    --popover: 0 0% 0%;
+    --popover-foreground: 0 0% 88%;
+    --primary: 217 91% 60%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 0 0% 12%;
+    --secondary-foreground: 0 0% 88%;
+    --muted: 0 0% 18%;
+    --muted-foreground: 0 0% 55%;
+    --accent: 217 91% 60%;
+    --accent-foreground: 0 0% 100%;
+    --destructive: 0 70% 60%;
+    --destructive-foreground: 0 0% 100%;
+    --success: 142 71% 45%;
+    --success-foreground: 0 0% 100%;
+    --warning: 45 100% 51%;
+    --warning-foreground: 0 0% 0%;
+    --border: 0 0% 15%;
+    --input: 0 0% 12%;
+    --ring: 217 91% 60%;
+    --radius: 0.375rem;
+    --sidebar-background: 0 0% 0%;
+    --sidebar-foreground: 0 0% 88%;
+    --sidebar-border: 0 0% 15%;
+    --sidebar-hover: 0 0% 10%;
+    --code-bg: 0 0% 0%;
+    --terminal-bg: 0 0% 0%;
+    --tab-bar-bg: 0 0% 0%;
+    --tab-active-bg: 0 0% 8%;
+    --tab-inactive-bg: transparent;
+    --statusbar-bg: 0 0% 20%;
+    --activitybar-bg: 0 0% 0%;
+    --chat-bg: 0 0% 0%;
+    --line-number: 0 0% 40%;
+    --line-number-bg: 0 0% 0%;
+  }
+
+  .dark {
+    --background: 0 0% 0%;
+    --foreground: 0 0% 88%;
+    --card: 0 0% 0%;
+    --card-foreground: 0 0% 88%;
+    --popover: 0 0% 0%;
+    --popover-foreground: 0 0% 88%;
+    --primary: 217 91% 60%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 0 0% 12%;
+    --secondary-foreground: 0 0% 88%;
+    --muted: 0 0% 18%;
+    --muted-foreground: 0 0% 55%;
+    --accent: 217 91% 60%;
+    --accent-foreground: 0 0% 100%;
+    --destructive: 0 70% 60%;
+    --destructive-foreground: 0 0% 100%;
+    --success: 142 71% 45%;
+    --success-foreground: 0 0% 100%;
+    --warning: 45 100% 51%;
+    --warning-foreground: 0 0% 0%;
+    --border: 0 0% 15%;
+    --input: 0 0% 12%;
+    --ring: 217 91% 60%;
+    --sidebar-background: 0 0% 0%;
+    --sidebar-foreground: 0 0% 88%;
+    --sidebar-border: 0 0% 15%;
+    --sidebar-hover: 0 0% 10%;
+    --code-bg: 0 0% 0%;
+    --terminal-bg: 0 0% 0%;
+    --tab-bar-bg: 0 0% 0%;
+    --tab-active-bg: 0 0% 8%;
+    --tab-inactive-bg: transparent;
+    --statusbar-bg: 0 0% 20%;
+    --activitybar-bg: 0 0% 0%;
+    --chat-bg: 0 0% 0%;
+    --line-number: 0 0% 40%;
+    --line-number-bg: 0 0% 0%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    font-size: 13px;
+    letter-spacing: 0;
+  }
+
+  .terminal-output {
+    @apply font-sans;
+    font-size: 13px;
+    line-height: 1.4;
+    font-weight: 400;
+  }
+
+  .code-editor {
+    @apply font-sans bg-[hsl(var(--code-bg))] text-foreground;
+    font-size: 14px;
+    line-height: 1.6;
+    tab-size: 2;
+    letter-spacing: 0;
+    font-weight: 400;
+  }
+
+  /* Scrollbar styling for better IDE experience */
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: hsl(var(--background));
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: hsl(var(--muted));
+    border-radius: 4px;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: hsl(var(--muted-foreground));
+  }
+
+  /* Syntax Highlighting - VSCode Dark+ Theme Colors */
+  
+  /* Comments */
+  .token.comment,
+  .token.prolog,
+  .token.doctype,
+  .token.cdata {
+    color: #6A9955;
+    font-style: italic;
+  }
+
+  /* Punctuation and Operators */
+  .token.punctuation,
+  .token.operator {
+    color: #D4D4D4;
+  }
+
+  /* Numbers */
+  .token.number,
+  .token.boolean {
+    color: #B5CEA8;
+  }
+
+  /* Strings */
+  .token.string,
+  .token.char,
+  .token.inserted,
+  .language-css .token.string,
+  .style .token.string {
+    color: #CE9178;
+  }
+
+  /* Keywords and Control Flow */
+  .token.keyword,
+  .token.atrule,
+  .token.attr-value.keyword {
+    color: #C586C0;
+  }
+
+  /* Functions */
+  .token.function {
+    color: #DCDCAA;
+  }
+
+  /* Types and Classes */
+  .token.class-name,
+  .token.builtin {
+    color: #4EC9B0;
+  }
+
+  /* Constants and Enums */
+  .token.constant,
+  .token.symbol,
+  .token.deleted {
+    color: #569CD6;
+  }
+
+  /* HTML Tags */
+  .token.tag {
+    color: #569CD6;
+  }
+
+  /* HTML/CSS Attributes and Properties */
+  .token.attr-name,
+  .token.property,
+  .token.selector,
+  .token.variable {
+    color: #9CDCFE;
+  }
+
+  /* Default text */
+  .token.entity,
+  .token.url,
+  .token.regex,
+  .token.important {
+    color: #D4D4D4;
+  }
+
+  .token.important,
+  .token.bold {
+    font-weight: bold;
+  }
+
+  .token.italic {
+    font-style: italic;
+  }
+
+  .token.entity {
+    cursor: help;
+  }
+
+  /* Python-specific highlighting */
+  .language-python .token.keyword {
+    color: #569CD6;
+  }
+
+  .language-python .token.builtin {
+    color: #4EC9B0;
+  }
+
+  .language-python .token.decorator {
+    color: #C586C0;
+  }
+
+  /* Markdown-specific */
+  .language-markdown .token.title {
+    color: #569CD6;
+    font-weight: bold;
+  }
+
+  .language-markdown .token.code {
+    color: #CE9178;
+  }
+
+  /* Code editor line numbers in react-simple-code-editor */
+  .npm__react-simple-code-editor__textarea,
+  .npm__react-simple-code-editor__textarea:focus {
+    outline: none !important;
+    caret-color: #D4D4D4;
+  }
+}
