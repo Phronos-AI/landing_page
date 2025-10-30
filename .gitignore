@@ -38,3 +38,23 @@ dist-ssr
 # OS files
 .DS_Store
 Thumbs.db
+
+# Tool-specific folders
+.bolt
+
+# Internal documentation and deployment files
+DEPLOYMENT_SUMMARY.md
+NETLIFY_DEPLOYMENT.md
+IMPLEMENTATION_COMPLETED.md
+IMPLEMENTATION_SUMMARY.md
+build-all.sh
+netlify.toml
+
+# IDE internal documentation (keep main README visible)
+ide/PHRONOS_IDE_README.md
+ide/IMPLEMENTATION_SUMMARY.md
+ide/MULTI_LANGUAGE_GUIDE.md
+ide/QUICKSTART.md
+
+# Whitepaper (keep private for now)
+whitepaper.md

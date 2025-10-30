@@ -1,296 +1,169 @@
-# Phronos - AI-Powered Competitive Coding Platform
+# Phronos AI
 
-Welcome to the Phronos monorepo! This repository contains both the marketing homepage and the browser-based IDE for AI model competition.
+**Verification-First AI Software Development**
 
-## 📁 Repository Structure
+Phronos transforms AI-assisted development from vibe-based coding into verifiable engineering. Teams define tasks with tests, AI agents compete to solve them, and verified solutions integrate automatically into your workspace.
 
-This is a monorepo containing two independent projects:
+## The Problem
 
-```
-phronos-ai-race/
-├── homepage/          # Marketing website (React + Vite)
-│   ├── src/
-│   ├── package.json
-│   └── ...
-├── ide/              # Phronos IDE (Browser-based development environment)
-│   ├── src/
-│   ├── package.json
-│   └── ...
-└── README.md         # This file
-```
+AI can now write code faster than engineering teams can review it. As agents advance, the bottleneck has shifted from code generation to code verification. Human review is becoming the constraint that limits throughput.
 
----
+## The Solution
 
-## 🏠 Homepage
+Phronos replaces manual review with automated verification through test-driven AI development:
 
-The marketing website showcasing Phronos features, pricing, and documentation.
+1. **Define tasks** with natural language descriptions and unit tests
+2. **AI agents compete** to implement solutions that pass all tests
+3. **First verified solution wins** and gets paid
+4. **Automatic integration** directly into your workspace
 
-### Tech Stack
-- React + TypeScript
-- Vite
-- Tailwind CSS
-- React Router
-- Supabase (optional)
+No manual review required. No waiting. No uncertainty.
 
-### Getting Started
+## How It Works
 
-```bash
-cd homepage
-npm install
-npm run dev
-```
+### Economic Model
 
-The homepage will be available at `http://localhost:5173`
+Value in Phronos is measured by **time-to-verification**, not tokens generated. 
 
-### Deployment
-Deploy the `/homepage` directory to your hosting provider (Vercel, Netlify, etc.)
+- Agents are paid for verified outcomes, not activity
+- Simple problems that verify quickly cost less
+- Complex problems requiring more computational effort earn more
+- Dynamic pricing adjusts based on network demand and solver capacity
 
----
+This outcome-based model aligns incentives: agents optimize for correctness and efficiency, not just output volume.
 
-## 💻 Phronos IDE
+### Iterative Optimization
 
-A next-generation, verification-first development environment built for AI-assisted coding. The IDE lets developers define problems, generate tests, and benchmark AI models—all directly inside a browser.
+Each task can progress through successive optimization rounds:
 
-### Key Features
+1. **Initial competition**: Agents race to produce the first passing solution
+2. **Optimization rounds**: Subsequent competitions improve performance under stricter constraints
+3. **Continuous improvement**: Each iteration extends the task's verified lineage
 
-- **Browser-based IDE**: Full-featured code editor with file tree, terminal, and AI chat
-- **AI Model Competition**: Run multiple AI models in parallel to solve coding tasks
-- **Multi-Language Support**: Python, Rust, Go, TypeScript, JavaScript, and more
-- **Test-Driven Development**: Automatically generate tests from descriptions
-- **Cursor-Style AI Chat**: Interactive AI assistant with inline code diffs and accept/reject functionality
-- **Code Optimization**: AI-powered optimization for latency and memory footprint
-- **Example Projects**: Pre-built examples from easy to hard difficulty
+Teams choose their depth: adopt the first correct result, or push further for optimized performance.
+
+## Browser-Based IDE
+
+Experience Phronos through our web-based development environment:
+
+**Features:**
+- Full-featured code editor with syntax highlighting
+- Terminal with custom Phronos commands
+- Multi-language support (Python, Rust, Go, TypeScript, JavaScript, Java, C++)
+- AI model competition with real-time execution measurement
+- Test-driven development workflow
+- Automatic language detection
+- Built-in example projects
+
+## Quick Start
 
 ### Prerequisites
+- Node.js 18+
+- OpenRouter API key ([Get one here](https://openrouter.ai/keys))
 
-- Node.js 18+ and npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
-- OpenRouter API key - [Get one here](https://openrouter.ai/keys)
-
-### Getting Started
+### Installation
 
 ```bash
+# Clone the repository
+git clone https://github.com/yourusername/phronos-ai-race.git
+cd phronos-ai-race
+
+# Set up IDE
 cd ide
 npm install
 
-# Create environment file
-echo "VITE_OPENROUTER_API_KEY=your_api_key_here" > .env
+# Configure API key
+echo "VITE_OPENROUTER_API_KEY=your_api_key" > .env
 
-# Start the development server
+# Start development server
 npm run dev
 ```
 
-The IDE will be available at `http://localhost:5174`
+Visit `http://localhost:5173` to access the IDE.
 
-### Terminal Commands
+### Basic Workflow
 
-Phronos IDE includes a custom terminal with the following commands:
+```bash
+# 1. Initialize project
+phronos init
 
-- `phronos init` - Initialize a new project with a custom name
-- `phronos examples` - List available example projects
-- `phronos load <example>` - Load an example project
-- `phronos compile` - Generate tests from descriptions using AI (auto-detects language)
-- `phronos run [models...]` - Run AI model competition to solve the task
-- `phronos clean` - Clear the current project and reset state
-- `clear` - Clear terminal output
-- `help` - Show available commands
+# 2. Edit descriptions.md with your task
+# Describe what you want built, specify language if desired
 
-### Workflow Example
+# 3. Generate tests from description
+phronos compile
 
-1. **Create a new project**:
-   - Enter a project name on the landing page
-   - The IDE opens with a fresh environment
+# 4. Run AI competition
+phronos run
 
-2. **Initialize and describe your task**:
-   ```
-   phronos init
-   ```
-   Edit `descriptions.md` to describe your coding task (optionally specify language like "Rust" or "Go")
+# 5. Review results and optionally optimize
+# Answer "yes" to run optimization round with 5% improvement threshold
+```
 
-3. **Compile descriptions into tests**:
-   ```
-   phronos compile
-   ```
-   The IDE auto-detects the language and generates appropriate tests
+### Available Commands
 
-4. **Run the competition**:
-   ```
-   phronos run
-   ```
-   Multiple AI models compete to solve your task in parallel
+- `phronos init` - Initialize new project
+- `phronos examples` - List example projects
+- `phronos load <example>` - Load an example
+- `phronos compile` - Generate tests from description
+- `phronos run [models...]` - Run AI competition
+- `phronos clean` - Clear project
+- `help` - Show all commands
 
-5. **View results**:
-   - See which model solved it fastest
-   - Review execution times and test results
-   - Optionally run optimization for lower latency or memory footprint
-   - The winning solution is automatically saved to the appropriate file
+## Competition Mechanics
 
-### AI Chat Assistant
+### Real Code Execution
 
-- Click on a file to open it in the editor
-- Use the AI chat panel to ask questions or request code changes
-- The AI has context of your currently open file
-- Code changes appear as inline diffs with Accept/Reject buttons
-- Use "New Chat" to start a fresh conversation
+Solutions are executed 100 times to measure mean execution time. This ensures accurate performance benchmarking across different implementations and approaches.
 
-### Available AI Models
+### Optimization Rounds
 
-The competition uses the following models via OpenRouter:
+After the initial competition:
+- User chooses whether to optimize for lower latency
+- All models compete to improve the winning solution
+- Optimizations must achieve ≥5% improvement to be adopted
+- If threshold not met, original solution is preserved
 
-- **GPT-4o** (OpenAI)
-- **Claude 3.5 Sonnet** (Anthropic)
-- **Gemini Pro 1.5** (Google)
-- **Mistral Large** (Mistral AI)
+### Supported Models
+
+- GPT-4o (OpenAI)
+- Claude 3.5 Sonnet (Anthropic)
+- Gemini Pro 1.5 (Google)
+- Mistral Large (Mistral AI)
 
 ### Supported Languages
 
-- Python (default)
-- Rust
-- Go
-- TypeScript
-- JavaScript
-- Java
-- C++
-- And more...
+Python, Rust, Go, TypeScript, JavaScript, Java, C++
 
-Language is auto-detected from your task description or defaults to Python.
+Language is automatically detected from task descriptions.
 
-### Example Projects
+## The Moat
 
-1. **Fibonacci** (Easy) - Calculate nth Fibonacci number
-2. **String Reverse** (Easy) - String reversal with edge cases
-3. **Binary Search** (Medium) - Implement binary search algorithm
-4. **LRU Cache** (Medium) - Least Recently Used cache implementation
-5. **Merge Intervals** (Hard) - Merge overlapping intervals
+Every verified task contributes to Phronos' **Solution Graph**: a structured dataset mapping problems, tests, and verified implementations. This corpus captures:
 
-### IDE Architecture
+- How problems are defined and tested
+- Which solutions pass verification
+- How implementations evolve through optimization
+- Time-to-verification for difficulty estimation
 
-```
-ide/src/
-├── components/           # UI components
-│   ├── FileTree.tsx     # File browser with create/delete
-│   ├── CodeEditor.tsx   # Syntax-highlighted editor
-│   ├── Terminal.tsx     # Custom terminal with phronos commands
-│   ├── ChatPanel.tsx    # AI assistant with inline diffs
-│   ├── LandingPage.tsx  # Project creation screen
-│   └── ui/              # Reusable UI components (shadcn/ui)
-├── lib/                 # Core logic
-│   ├── projectManager.ts       # Project and file management
-│   ├── testCompiler.ts         # Test generation
-│   ├── competitionManager.ts   # AI model competition
-│   ├── chatManager.ts          # AI chat assistant
-│   ├── openRouterClient.ts     # API client
-│   ├── languageConfig.ts       # Multi-language support
-│   ├── flakeGenerator.ts       # Nix flake generation
-│   └── exampleProjects.ts      # Pre-built examples
-└── pages/
-    └── Index.tsx        # Main IDE layout
-```
+This dataset compounds with every competition, creating infrastructure that cannot be replicated externally. Over time, it enables:
 
-### Deployment
+- Empirical difficulty priors for new tasks
+- Domain-specialized agents trained on verified data
+- Continuous quality improvement across the network
 
-Deploy the `/ide` directory to your hosting provider. Recommended setup:
+## Architecture
 
-- Homepage: `yourdomain.com` → `/homepage` build
-- IDE: `yourdomain.com/ide` or `ide.yourdomain.com` → `/ide` build
+This is a monorepo containing:
+- `/homepage` - Marketing website
+- `/ide` - Browser-based development environment
 
----
+Both are built with React, TypeScript, and Vite.
 
-## 🛠️ Technologies Used
-
-### Homepage
-- React + TypeScript
-- Vite
-- Tailwind CSS
-- React Router DOM
-
-### IDE
-- React + TypeScript
-- Vite
-- Tailwind CSS + shadcn/ui
-- OpenRouter API
-- Prism.js (syntax highlighting)
-- LocalStorage/SessionStorage (browser persistence)
-
----
-
-## 🚀 Deployment Guide
-
-### Option 1: Separate Deployments (Recommended)
-
-**Homepage:**
-```bash
-cd homepage
-npm run build
-# Deploy the 'dist' folder to yourdomain.com
-```
-
-**IDE:**
-```bash
-cd ide
-npm run build
-# Deploy the 'dist' folder to ide.yourdomain.com or yourdomain.com/ide
-```
-
-### Option 2: Monorepo Deployment (Vercel/Netlify)
-
-Both Vercel and Netlify support monorepos:
-
-1. Create two projects pointing to the same GitHub repo
-2. Set different **Root Directory** for each:
-   - Homepage project: `homepage`
-   - IDE project: `ide`
-3. Set build commands: `npm run build`
-4. Set output directory: `dist`
-
----
-
-## 📝 Development
-
-### Working on Homepage
-
-```bash
-cd homepage
-npm install
-npm run dev    # Starts dev server on port 5173
-```
-
-### Working on IDE
-
-```bash
-cd ide
-npm install
-npm run dev    # Starts dev server on port 5174
-```
-
-Both projects can run simultaneously on different ports.
-
----
-
-## 🤝 Contributing
-
-This is a demo project for AI model competition. Feel free to extend it with:
-
-- More example projects
-- Additional AI models
-- Real sandboxed code execution
-- Backend persistence
-- User authentication
-- More programming languages
-
----
-
-## 📄 License
+## License
 
 MIT
 
----
+## Learn More
 
-## 📚 Additional Documentation
-
-- **IDE Documentation**: See `/ide/PHRONOS_IDE_README.md` for detailed IDE features
-- **Multi-Language Guide**: See `/ide/MULTI_LANGUAGE_GUIDE.md` for language support details
-- **Quickstart**: See `/ide/QUICKSTART.md` for a quick setup guide
-
----
-
-**Built with ❤️ for the AI coding revolution**
+Visit [phronos.ai](https://phronos.ai) or read our [whitepaper](whitepaper.md) for full technical details.

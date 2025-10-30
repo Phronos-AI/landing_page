@@ -106,13 +106,13 @@ export const projectManager = {
     // Clear existing project
     storage.clearProject();
 
-    // Create new project with example
+    // Create new project with only the description
+    // User will run 'phronos compile' to generate tests
+    // Nix file and other files will be created through the normal workflow
     const project: ProjectState = {
       projectName: example.name,
       files: {
         "descriptions.md": example.description,
-        "tests/test_solution.py": example.tests,
-        "flake.nix": DEFAULT_FLAKE_NIX,
       },
     };
 
@@ -120,8 +120,8 @@ export const projectManager = {
 
     return {
       success: true,
-      message: `Loaded example: ${example.name} (${example.difficulty})`,
-      filesCreated: ["descriptions.md", "tests/test_solution.py", "flake.nix"],
+      message: `Loaded example: ${example.name} (${example.difficulty}). Run 'phronos compile' to generate tests.`,
+      filesCreated: ["descriptions.md"],
     };
   },
 

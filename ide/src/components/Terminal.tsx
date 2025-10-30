@@ -6,14 +6,14 @@ import { competitionManager, ModelResult } from "@/lib/competitionManager";
 import { openRouterClient, AVAILABLE_MODELS } from "@/lib/openRouterClient";
 import { chatManager } from "@/lib/chatManager";
 import { detectLanguageWithAI, getLanguageConfig } from "@/lib/languageConfig";
+import { codeExecutor } from "@/lib/codeExecutor";
 import { cn } from "@/lib/utils";
 
 type OptimizationState = {
-  stage: "latency_question" | "memory_question" | null;
+  stage: "latency_question" | null;
   winningSolution: string | null;
-  modelIds: string[];
-  optimizeLatency: boolean;
-  optimizeMemory: boolean;
+  originalMeanTime: number | null;
+  modelIds: string[]; // Will contain ALL model IDs for optimization
 };
 
 interface TerminalProps {
@@ -28,9 +28,8 @@ export function Terminal({ onCloseAllTabs, projectName }: TerminalProps) {
   const [optimizationState, setOptimizationState] = useState<OptimizationState>({
     stage: null,
     winningSolution: null,
+    originalMeanTime: null,
     modelIds: [],
-    optimizeLatency: false,
-    optimizeMemory: false,
   });
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -113,104 +112,105 @@ export function Terminal({ onCloseAllTabs, projectName }: TerminalProps) {
 
     const answerBool = answer === "yes";
 
-    // Handle the first question (latency)
+    // Handle the latency optimization question
     if (optimizationState.stage === "latency_question") {
-      terminal.addOutput("");
-      terminal.addInfo("Do you want to optimize for lower memory footprint? (yes/no)");
-      setOptimizationState({
-        ...optimizationState,
-        stage: "memory_question",
-        optimizeLatency: answerBool,
-      });
-      return;
-    }
-
-    // Handle the second question (memory) and run optimization if needed
-    if (optimizationState.stage === "memory_question") {
-      const optimizeLatency = optimizationState.optimizeLatency;
-      const optimizeMemory = answerBool;
-
-      // If neither optimization is selected, skip
-      if (!optimizeLatency && !optimizeMemory) {
+      // If user said no, skip optimization
+      if (!answerBool) {
         terminal.addOutput("");
         terminal.addInfo("No optimization selected. Competition complete!");
         setOptimizationState({
           stage: null,
           winningSolution: null,
+          originalMeanTime: null,
           modelIds: [],
-          optimizeLatency: false,
-          optimizeMemory: false,
         });
         return;
       }
 
-      // Run one optimization competition with combined goals
+      // Run optimization with ALL models
       setIsProcessing(true);
 
       try {
-        const goals: string[] = [];
-        if (optimizeLatency) goals.push("lower latency");
-        if (optimizeMemory) goals.push("lower memory footprint");
-        const goalsText = goals.join(" and ");
-
         terminal.addOutput("");
-        
-        // Get the winner model name for display
-        const winnerModelId = optimizationState.modelIds[0];
-        const winnerModel = AVAILABLE_MODELS.find((m) => m.id === winnerModelId);
-        const winnerModelName = winnerModel?.name || winnerModelId;
-        
-        terminal.addInfo(`Running optimization with ${winnerModelName} for ${goalsText}...`);
+        terminal.addInfo(`Running optimization with all models for lower latency...`);
+        terminal.addOutput("");
+        terminal.addInfo(`Original winner: ${optimizationState.originalMeanTime}ms mean execution time`);
         terminal.addOutput("");
 
         const competitionResult = await competitionManager.runCompetition(
-          optimizationState.modelIds, // Only contains the winner model
+          optimizationState.modelIds, // Contains ALL model IDs
           () => {},
           {
-            optimizeLatency,
-            optimizeMemory,
+            optimizeLatency: true,
             previousSolution: optimizationState.winningSolution!,
           }
         );
 
-        // Display results
+        // Display results table
         terminal.addOutput("");
-        terminal.addInfo(`Optimization Results (${goalsText}):`);
-        terminal.addOutput("─".repeat(80));
+        terminal.addInfo("Optimization Results:");
+        terminal.addOutput("─".repeat(90));
+        terminal.addOutput(
+          `${"Model".padEnd(25)} | ${"Tests".padEnd(10)} | ${"Mean Time".padEnd(12)} | ${"Improvement".padEnd(15)} | Status`
+        );
+        terminal.addOutput("─".repeat(90));
 
-        const result = competitionResult.results[0];
-        if (result) {
+        competitionResult.results.forEach((result) => {
           const testsInfo = result.totalTests 
             ? `${result.testsPassed}/${result.totalTests}`
             : "N/A";
-          const timeInfo = result.duration ? result.duration.toString() : "N/A";
-          const status = result.status === "passed" ? "✓ PASSED" : 
-                        result.status === "failed" ? "✗ FAILED" : "✗ ERROR";
+          const timeInfo = result.meanExecutionTime 
+            ? `${result.meanExecutionTime.toFixed(2)}ms` 
+            : "N/A";
+          const originalTime = optimizationState.originalMeanTime || 0;
+          const improvement = result.meanExecutionTime && originalTime > 0
+            ? codeExecutor.calculateImprovement(originalTime, result.meanExecutionTime)
+            : 0;
+          const improvementText = improvement > 0 
+            ? `${improvement.toFixed(1)}% faster`
+            : improvement < 0 
+            ? `${Math.abs(improvement).toFixed(1)}% slower`
+            : "no change";
+          const status = result.status === "passed" ? "PASSED" : 
+                        result.status === "failed" ? "FAILED" : "ERROR";
           
-          terminal.addOutput(`Model: ${result.modelName}`);
-          terminal.addOutput(`Tests: ${testsInfo}`);
-          terminal.addOutput(`Execution Time: ${timeInfo}ms`);
-          terminal.addOutput(`Status: ${status}`);
-        }
+          terminal.addOutput(
+            `${result.modelName.padEnd(25)} | ${testsInfo.padEnd(10)} | ${timeInfo.padEnd(12)} | ${improvementText.padEnd(15)} | ${status}`
+          );
+        });
 
-        terminal.addOutput("─".repeat(80));
+        terminal.addOutput("─".repeat(90));
         terminal.addOutput("");
 
         if (competitionResult.winner) {
-          terminal.addSuccess(
-            `Optimization complete! (${competitionResult.winner.duration}ms)`
-          );
+          const originalTime = optimizationState.originalMeanTime || 0;
+          const optimizedTime = competitionResult.winner.meanExecutionTime || 0;
           
-          await competitionManager.adoptSolution(competitionResult.winner);
+          // Check if optimization meets 5% threshold
+          const meetsThreshold = codeExecutor.meetsThreshold(originalTime, optimizedTime, 5);
+          const improvement = codeExecutor.calculateImprovement(originalTime, optimizedTime);
           
-          // Get the correct solution file path based on language
-          const description = projectManager.getFile("descriptions.md");
-          const language = description ? await detectLanguageWithAI(description) : "python";
-          const config = getLanguageConfig(language);
-          
-          terminal.addSuccess(`Optimized solution saved to ${config.solutionFilePattern}`);
+          if (meetsThreshold) {
+            terminal.addSuccess(
+              `Optimization accepted: ${optimizedTime.toFixed(2)}ms (${improvement.toFixed(1)}% improvement)`
+            );
+            
+            await competitionManager.adoptSolution(competitionResult.winner);
+            
+            // Get the correct solution file path based on language
+            const description = projectManager.getFile("descriptions.md");
+            const language = description ? await detectLanguageWithAI(description) : "python";
+            const config = getLanguageConfig(language);
+            
+            terminal.addSuccess(`Solution from ${competitionResult.winner.modelName} saved to ${config.solutionFilePattern}`);
+          } else {
+            terminal.addInfo(
+              `Optimization < 5% (${improvement.toFixed(1)}%), keeping original solution`
+            );
+            terminal.addInfo(`Original: ${originalTime.toFixed(2)}ms → Optimized: ${optimizedTime.toFixed(2)}ms`);
+          }
         } else {
-          terminal.addError(`Optimization failed - tests did not pass`);
+          terminal.addError(`Optimization failed - no model passed all tests`);
         }
 
         terminal.addOutput("");
@@ -221,9 +221,8 @@ export function Terminal({ onCloseAllTabs, projectName }: TerminalProps) {
         setOptimizationState({
           stage: null,
           winningSolution: null,
+          originalMeanTime: null,
           modelIds: [],
-          optimizeLatency: false,
-          optimizeMemory: false,
         });
         setIsProcessing(false);
         setTimeout(() => {
@@ -304,7 +303,7 @@ export function Terminal({ onCloseAllTabs, projectName }: TerminalProps) {
         terminal.addInfo("Competition Results:");
         terminal.addOutput("─".repeat(80));
         terminal.addOutput(
-          `${"Model".padEnd(25)} | ${"Tests Passed".padEnd(15)} | ${"Exec Time".padEnd(12)} | Status`
+          `${"Model".padEnd(25)} | ${"Tests".padEnd(10)} | ${"Mean Time".padEnd(12)} | Status`
         );
         terminal.addOutput("─".repeat(80));
 
@@ -312,12 +311,14 @@ export function Terminal({ onCloseAllTabs, projectName }: TerminalProps) {
           const testsInfo = result.totalTests 
             ? `${result.testsPassed}/${result.totalTests}`
             : "N/A";
-          const timeInfo = result.duration ? `${result.duration}ms` : "N/A";
+          const timeInfo = result.meanExecutionTime 
+            ? `${result.meanExecutionTime.toFixed(2)}ms` 
+            : "N/A";
           const status = result.status === "passed" ? "PASSED" : 
                         result.status === "failed" ? "FAILED" : "ERROR";
           
           terminal.addOutput(
-            `${result.modelName.padEnd(25)} | ${testsInfo.padEnd(15)} | ${timeInfo.padEnd(12)} | ${status}`
+            `${result.modelName.padEnd(25)} | ${testsInfo.padEnd(10)} | ${timeInfo.padEnd(12)} | ${status}`
           );
         });
 
@@ -326,7 +327,7 @@ export function Terminal({ onCloseAllTabs, projectName }: TerminalProps) {
 
         if (competitionResult.winner) {
           terminal.addSuccess(
-            `Winner: ${competitionResult.winner.modelName} (${competitionResult.winner.duration}ms execution time)`
+            `Winner: ${competitionResult.winner.modelName} (${competitionResult.winner.meanExecutionTime?.toFixed(2)}ms mean over 100 runs)`
           );
           
           // Auto-adopt the winning solution
@@ -340,15 +341,14 @@ export function Terminal({ onCloseAllTabs, projectName }: TerminalProps) {
             
             terminal.addSuccess(`Solution from ${competitionResult.winner.modelName} saved to ${config.solutionFilePattern}`);
             
-            // Ask optimization questions
+            // Ask single optimization question
             terminal.addOutput("");
             terminal.addInfo("Do you want to optimize for lower latency? (yes/no)");
             setOptimizationState({
               stage: "latency_question",
               winningSolution: competitionResult.winner.solution || "",
-              modelIds: [competitionResult.winner.model], // Only the winner model
-              optimizeLatency: false,
-              optimizeMemory: false,
+              originalMeanTime: competitionResult.winner.meanExecutionTime || 0,
+              modelIds: modelsToRun, // ALL models compete in optimization
             });
           } catch (error) {
             terminal.addError(`Failed to save solution: ${error instanceof Error ? error.message : "Unknown error"}`);

@@ -1,6 +1,7 @@
 import { openRouterClient, AVAILABLE_MODELS } from "./openRouterClient";
 import { projectManager } from "./projectManager";
 import { detectLanguageWithAI, getLanguageConfig } from "./languageConfig";
+import { codeExecutor } from "./codeExecutor";
 
 export interface ModelResult {
   model: string;
@@ -9,7 +10,7 @@ export interface ModelResult {
   solution?: string;
   error?: string;
   timestamp: number;
-  duration?: number; // Code execution time (simulated)
+  meanExecutionTime?: number; // Mean of 100 runs in ms
   aiResponseTime?: number; // AI generation time
   testsPassed?: number;
   totalTests?: number;
@@ -27,7 +28,6 @@ export const competitionManager = {
     onProgress: (result: ModelResult) => void,
     options?: {
       optimizeLatency?: boolean;
-      optimizeMemory?: boolean;
       previousSolution?: string;
     }
   ): Promise<CompetitionResult> {
@@ -72,17 +72,12 @@ export const competitionManager = {
         let systemPrompt = `You are a ${config.name} coding expert. Write code that passes all the given tests. Return ONLY the code implementation with proper imports, no explanations or markdown.`;
         let userPrompt = `Task Description:\n${description}\n\nTests to Pass (${config.testFramework}):\n${tests}\n\nProvide the ${config.name} solution code:`;
         
-        const isOptimization = (options?.optimizeLatency || options?.optimizeMemory) && options?.previousSolution;
+        const isOptimization = options?.optimizeLatency && options?.previousSolution;
         
         if (isOptimization) {
-          const goals: string[] = [];
-          if (options.optimizeLatency) goals.push("lower latency (faster execution time)");
-          if (options.optimizeMemory) goals.push("lower memory footprint (less memory usage)");
-          const goalsText = goals.join(" and ");
+          systemPrompt = `You are a ${config.name} coding expert specializing in code optimization. You will be given a working solution and your goal is to optimize it for lower latency (faster execution time). The optimized code MUST still pass all tests. Return ONLY the optimized code implementation with proper imports, no explanations or markdown.`;
           
-          systemPrompt = `You are a ${config.name} coding expert specializing in code optimization. You will be given a working solution and your goal is to optimize it for ${goalsText}. The optimized code MUST still pass all tests. Return ONLY the optimized code implementation with proper imports, no explanations or markdown.`;
-          
-          userPrompt = `Task Description:\n${description}\n\nTests to Pass (${config.testFramework}):\n${tests}\n\nPrevious Working Solution:\n${options.previousSolution}\n\nOptimize this ${config.name} solution for ${goalsText}. Ensure all tests still pass:`;
+          userPrompt = `Task Description:\n${description}\n\nTests to Pass (${config.testFramework}):\n${tests}\n\nPrevious Working Solution:\n${options.previousSolution}\n\nOptimize this ${config.name} solution for lower latency (faster execution time). Ensure all tests still pass:`;
         }
         
         const response = await openRouterClient.complete({
@@ -104,23 +99,24 @@ export const competitionManager = {
         const solution = response.choices[0].message.content;
         const aiResponseTime = Date.now() - aiStartTime;
 
-        // Simulate test validation (in real scenario, this would run actual tests)
-        const testResult = await this.simulateTestRun(solution, tests);
-        
-        // Simulate code execution time based on solution quality
-        const executionTime = this.simulateExecutionTime(solution, isOptimization);
+        // Execute and measure solution with real code execution (100 runs for mean)
+        const executionResult = await codeExecutor.executeAndMeasure(
+          solution,
+          tests,
+          language
+        );
 
         result.solution = solution;
-        result.status = testResult.passed ? "passed" : "failed";
-        result.duration = executionTime; // Code execution time
-        result.aiResponseTime = aiResponseTime; // AI generation time
-        result.testsPassed = testResult.testsPassed;
-        result.totalTests = testResult.totalTests;
-        result.error = testResult.passed ? undefined : "Tests failed";
+        result.status = executionResult.passed ? "passed" : "failed";
+        result.meanExecutionTime = executionResult.meanExecutionTime;
+        result.aiResponseTime = aiResponseTime;
+        result.testsPassed = executionResult.testsPassed;
+        result.totalTests = executionResult.totalTests;
+        result.error = executionResult.passed ? undefined : executionResult.error;
 
         // Update winner if this is faster (among passing solutions)
-        if (testResult.passed) {
-          if (!winner || (executionTime < (winner.duration || Infinity))) {
+        if (executionResult.passed) {
+          if (!winner || (executionResult.meanExecutionTime < (winner.meanExecutionTime || Infinity))) {
             winner = result;
           }
         }
@@ -158,80 +154,6 @@ export const competitionManager = {
     };
   },
 
-  simulateExecutionTime(solution: string, isOptimization: boolean): number {
-    // Simulate code execution time based on code complexity
-    // In production, this would actually run the code and measure performance
-    
-    // Base time range
-    let baseTime = 50 + Math.random() * 100; // 50-150ms base
-    
-    // Analyze code complexity (simple heuristics)
-    const lines = solution.split('\n').length;
-    const hasLoops = /for|while|loop|each|map|filter|reduce/i.test(solution);
-    const hasRecursion = /function.*\(.*\)[\s\S]*?\1\s*\(/i.test(solution);
-    const hasNestedLoops = solution.split(/for|while/).length > 2;
-    
-    // Add time based on complexity
-    if (lines > 50) baseTime += 30;
-    if (lines > 100) baseTime += 50;
-    if (hasLoops) baseTime += 20;
-    if (hasNestedLoops) baseTime += 50;
-    if (hasRecursion) baseTime += 30;
-    
-    // If this is an optimization run, make it 15-30% faster
-    if (isOptimization) {
-      const improvement = 0.15 + Math.random() * 0.15; // 15-30% improvement
-      baseTime = baseTime * (1 - improvement);
-    }
-    
-    // Round to nearest millisecond
-    return Math.round(baseTime);
-  },
-
-  async simulateTestRun(solution: string, tests: string): Promise<{ passed: boolean; testsPassed: number; totalTests: number }> {
-    // Simulate test execution with random success
-    // In production, this would use a sandboxed test runner
-    await new Promise((resolve) => setTimeout(resolve, 500));
-    
-    // Count tests in the test file - support multiple languages
-    let totalTests = 0;
-    
-    // Python: def test_
-    totalTests = (tests.match(/def test_/g) || []).length;
-    
-    // If no Python tests, try other patterns
-    if (totalTests === 0) {
-      // Rust: #[test] or #[tokio::test]
-      totalTests = (tests.match(/#\[test\]|#\[tokio::test\]/g) || []).length;
-    }
-    
-    if (totalTests === 0) {
-      // Go: func Test
-      totalTests = (tests.match(/func Test\w+/g) || []).length;
-    }
-    
-    if (totalTests === 0) {
-      // JavaScript/TypeScript: test( or it(
-      totalTests = (tests.match(/(?:test|it)\s*\(/g) || []).length;
-    }
-    
-    if (totalTests === 0) {
-      // Java: @Test
-      totalTests = (tests.match(/@Test/g) || []).length;
-    }
-    
-    // Fallback: assume 5 tests if none detected
-    if (totalTests === 0) {
-      totalTests = 5;
-    }
-    
-    // For demo purposes, randomly determine how many tests pass (70% overall pass rate)
-    const passRate = Math.random();
-    const testsPassed = passRate > 0.3 ? totalTests : Math.floor(Math.random() * totalTests);
-    const passed = testsPassed === totalTests;
-    
-    return { passed, testsPassed, totalTests };
-  },
 
   async adoptSolution(modelResult: ModelResult): Promise<void> {
     if (!modelResult.solution) {
