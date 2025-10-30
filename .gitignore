@@ -42,13 +42,13 @@ Thumbs.db
 # Tool-specific folders
 .bolt
 
-# Internal documentation and deployment files
+# Internal documentation files (not needed in public repo)
 DEPLOYMENT_SUMMARY.md
 NETLIFY_DEPLOYMENT.md
 IMPLEMENTATION_COMPLETED.md
 IMPLEMENTATION_SUMMARY.md
-build-all.sh
-netlify.toml
+
+# Note: build-all.sh and netlify.toml are kept visible - needed for deployment
 
 # IDE internal documentation (keep main README visible)
 ide/PHRONOS_IDE_README.md

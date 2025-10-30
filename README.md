@@ -65,8 +65,8 @@ Experience Phronos through our web-based development environment:
 
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/phronos-ai-race.git
-cd phronos-ai-race
+git clone https://github.com/Phronos-AI/landing_page.git
+cd landing_page
 
 # Set up IDE
 cd ide
