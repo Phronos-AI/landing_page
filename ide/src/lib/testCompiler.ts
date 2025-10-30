@@ -65,7 +65,7 @@ export const testCompiler = {
 
     try {
       const response = await openRouterClient.complete({
-        model: "openai/gpt-4o",
+        model: "anthropic/claude-sonnet-4.5",
         messages: [
           {
             role: "system",

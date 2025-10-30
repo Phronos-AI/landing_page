@@ -107,7 +107,7 @@ export async function detectLanguageWithAI(description: string): Promise<string>
     const supportedLanguages = Object.keys(LANGUAGE_CONFIGS).join(", ");
     
     const response = await openRouterClient.complete({
-      model: "openai/gpt-4o-mini", // Use mini for faster/cheaper detection
+      model: "anthropic/claude-sonnet-4.5",
       messages: [
         {
           role: "system",

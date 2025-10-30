@@ -21,10 +21,11 @@ export interface CompletionResponse {
 }
 
 export const AVAILABLE_MODELS = [
-  { id: "openai/gpt-4o", name: "GPT-4o", provider: "OpenAI" },
-  { id: "anthropic/claude-3.5-sonnet", name: "Claude 3.5 Sonnet", provider: "Anthropic" },
-  { id: "google/gemini-pro-1.5", name: "Gemini Pro 1.5", provider: "Google" },
-  { id: "mistralai/mistral-large", name: "Mistral Large", provider: "Mistral" },
+  { id: "anthropic/claude-sonnet-4.5", name: "Claude Sonnet 4.5", provider: "Anthropic" },
+  { id: "openai/gpt-5", name: "GPT-5", provider: "OpenAI" },
+  { id: "google/gemini-2.5-pro", name: "Gemini 2.5 Pro", provider: "Google" },
+  { id: "qwen/qwen3-max", name: "Qwen3 Max", provider: "Qwen" },
+  { id: "deepseek/deepseek-chat-v3.1", name: "DeepSeek Chat v3.1", provider: "DeepSeek" },
 ];
 
 class OpenRouterClient {
@@ -74,7 +75,7 @@ class OpenRouterClient {
     const config = getLanguageConfig(language);
     
     const response = await this.complete({
-      model: "openai/gpt-4o",
+      model: "anthropic/claude-sonnet-4.5",
       messages: [
         {
           role: "system",
@@ -92,7 +93,7 @@ class OpenRouterClient {
 
   async generateSolution(description: string, tests: string): Promise<string> {
     const response = await this.complete({
-      model: "openai/gpt-4o",
+      model: "anthropic/claude-sonnet-4.5",
       messages: [
         {
           role: "system",
