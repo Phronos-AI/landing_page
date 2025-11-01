@@ -46,6 +46,20 @@ export abstract class BaseHandler {
     });
 
     try {
+      // Attach to container to capture output BEFORE starting
+      let output = '';
+      if (captureOutput) {
+        const stream: any = await container.attach({
+          stream: true,
+          stdout: true,
+          stderr: true,
+        });
+
+        stream.on('data', (chunk: Buffer) => {
+          output += chunk.toString('utf8');
+        });
+      }
+
       await container.start();
 
       // Wait for container with timeout
@@ -59,7 +73,21 @@ export abstract class BaseHandler {
         throw new Error(`Execution timeout after ${timeout}ms`);
       }
 
-      const output = captureOutput ? await this.getContainerOutput(container) : '';
+      // Give a moment for stream to finish
+      await new Promise(resolve => setTimeout(resolve, 100));
+
+      // Clean Docker headers from output
+      if (captureOutput && output) {
+        output = output.split('\n')
+          .map(line => line.length > 8 ? line.substring(8) : line)
+          .join('\n')
+          .trim();
+      }
+      
+      console.log('  → Captured output length:', output.length);
+      if (output) {
+        console.log('  → Captured output preview:', output.substring(0, 200));
+      }
       
       return {
         exitCode: result as number,
@@ -95,44 +123,6 @@ export abstract class BaseHandler {
     }
   }
 
-  /**
-   * Get container output (stdout + stderr)
-   */
-  private async getContainerOutput(container: Docker.Container): Promise<string> {
-    try {
-      const logBuffer = await container.logs({
-        stdout: true,
-        stderr: true,
-        follow: false
-      });
-      
-      console.log('  → Raw log buffer length:', logBuffer.length);
-      
-      // dockerode returns a Buffer directly
-      const output = logBuffer.toString('utf8');
-      
-      console.log('  → Raw output length:', output.length);
-      console.log('  → Raw output preview:', output.substring(0, 200));
-      
-      // Clean Docker log headers (8-byte prefix on each line)
-      const cleaned = output.split('\n')
-        .map(line => {
-          // Docker uses 8-byte headers, strip them
-          if (line.length > 8) {
-            return line.substring(8);
-          }
-          return line;
-        })
-        .join('\n');
-      
-      console.log('  → Cleaned output length:', cleaned.length);
-      
-      return cleaned.trim();
-    } catch (error) {
-      console.error('Failed to get container logs:', error);
-      return '';
-    }
-  }
 
   /**
    * Wait for container to finish
