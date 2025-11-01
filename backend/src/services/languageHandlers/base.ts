@@ -113,6 +113,10 @@ export abstract class BaseHandler {
       
       console.log('  → [BASE] Container finished with exit code:', result);
 
+      // Give streams time to flush before reading output
+      console.log('  → [BASE] Waiting for streams to flush...');
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
       // Wait for output to finish
       console.log('  → [BASE] Waiting for output promise...');
       const output = await outputPromise;
