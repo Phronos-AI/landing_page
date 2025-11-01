@@ -13,9 +13,16 @@ export class PythonHandler extends BaseHandler {
     console.log('  → [PYTHON] Tests preview:', tests.substring(0, 150));
     console.log('  → [PYTHON] Work directory:', workDir);
     
+    // Strip markdown code fences before writing
+    const cleanSolution = this.stripMarkdown(solution);
+    const cleanTests = this.stripMarkdown(tests);
+    
+    console.log('  → [PYTHON] Cleaned solution preview:', cleanSolution.substring(0, 100));
+    console.log('  → [PYTHON] Cleaned tests preview:', cleanTests.substring(0, 100));
+    
     // Write solution and test files
-    await fs.writeFile(path.join(workDir, 'solution.py'), solution);
-    await fs.writeFile(path.join(workDir, 'test_solution.py'), tests);
+    await fs.writeFile(path.join(workDir, 'solution.py'), cleanSolution);
+    await fs.writeFile(path.join(workDir, 'test_solution.py'), cleanTests);
     console.log('  → [PYTHON] Files written to disk');
 
     // Install pytest AND run tests in the same container

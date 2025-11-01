@@ -174,6 +174,20 @@ export abstract class BaseHandler {
   }
 
   /**
+   * Strip markdown code fences from code
+   */
+  protected stripMarkdown(code: string): string {
+    // Remove opening fence: ```python, ```javascript, etc.
+    let cleaned = code.replace(/^```[\w]*\s*\n/m, '');
+    // Remove closing fence: ```
+    cleaned = cleaned.replace(/\n```\s*$/m, '');
+    // Also handle if there are multiple fences (shouldn't happen but be safe)
+    cleaned = cleaned.replace(/```[\w]*\s*\n/g, '');
+    cleaned = cleaned.replace(/\n```/g, '');
+    return cleaned.trim();
+  }
+
+  /**
    * Calculate statistics from timing measurements
    */
   protected calculateStatistics(times: number[]): { mean: number; stdDev: number } {
