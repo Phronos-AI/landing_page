@@ -28,9 +28,17 @@ export abstract class BaseHandler {
     const timeout = options.timeout || this.timeout;
     const captureOutput = options.captureOutput !== false;
 
+    console.log('  → [BASE] runInContainer called');
+    console.log('  → [BASE] workDir:', workDir);
+    console.log('  → [BASE] command:', command.join(' '));
+    console.log('  → [BASE] captureOutput:', captureOutput);
+    console.log('  → [BASE] timeout:', timeout);
+
     // Ensure image is pulled
     await this.ensureImage();
+    console.log('  → [BASE] Image ready:', this.image);
 
+    console.log('  → [BASE] Creating container...');
     const container = await this.docker.createContainer({
       Image: this.image,
       Cmd: command,
@@ -44,6 +52,7 @@ export abstract class BaseHandler {
       AttachStdout: captureOutput,
       AttachStderr: captureOutput,
     });
+    console.log('  → [BASE] Container created:', container.id);
 
     try {
       // Attach to container FIRST, before starting
@@ -85,21 +94,29 @@ export abstract class BaseHandler {
       }
 
       // NOW start the container
+      console.log('  → [BASE] Starting container...');
       await container.start();
+      console.log('  → [BASE] Container started');
 
       // Wait for container with timeout
+      console.log('  → [BASE] Waiting for container to finish...');
       const result = await Promise.race([
         this.waitForContainer(container),
         this.timeoutPromise(timeout),
       ]);
 
       if (result === 'timeout') {
+        console.log('  → [BASE] TIMEOUT!');
         await container.kill();
         throw new Error(`Execution timeout after ${timeout}ms`);
       }
+      
+      console.log('  → [BASE] Container finished with exit code:', result);
 
       // Wait for output to finish
+      console.log('  → [BASE] Waiting for output promise...');
       const output = await outputPromise;
+      console.log('  → [BASE] Output promise resolved');
       
       console.log('  → Captured output length:', output.length);
       if (output) {

@@ -7,14 +7,27 @@ export class PythonHandler extends BaseHandler {
   protected image = 'python:3.11-slim';
 
   async validateSolution(solution: string, tests: string, workDir: string): Promise<ValidationResult> {
+    console.log('  → [PYTHON] Received solution:', solution.length, 'bytes');
+    console.log('  → [PYTHON] Solution preview:', solution.substring(0, 150));
+    console.log('  → [PYTHON] Received tests:', tests.length, 'bytes');
+    console.log('  → [PYTHON] Tests preview:', tests.substring(0, 150));
+    console.log('  → [PYTHON] Work directory:', workDir);
+    
     // Write solution and test files
     await fs.writeFile(path.join(workDir, 'solution.py'), solution);
     await fs.writeFile(path.join(workDir, 'test_solution.py'), tests);
+    console.log('  → [PYTHON] Files written to disk');
 
     // Install pytest AND run tests in the same container
+    const command = 'pip install -q pytest 2>/dev/null && python -m pytest test_solution.py -v --tb=short';
+    console.log('  → [PYTHON] Executing command:', command);
+    
     const { exitCode, output } = await this.runInContainer(workDir, [
-      'sh', '-c', 'pip install -q pytest 2>/dev/null && python -m pytest test_solution.py -v --tb=short'
+      'sh', '-c', command
     ]);
+    
+    console.log('  → [PYTHON] Container exited with code:', exitCode);
+    console.log('  → [PYTHON] Container output length:', output.length);
 
     const testResults = this.parseTestOutput(output);
 
