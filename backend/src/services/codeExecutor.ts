@@ -63,6 +63,12 @@ export class CodeExecutor {
       console.log(`  → Validating ${language} solution...`);
       const validationResult = await handler.validateSolution(solution, tests, workDir);
       
+      console.log(`  → Test result: ${validationResult.passed ? 'PASSED' : 'FAILED'}`);
+      console.log(`  → Tests: ${validationResult.testsPassed}/${validationResult.totalTests}`);
+      if (validationResult.error) {
+        console.log(`  → Error: ${validationResult.error.substring(0, 500)}`);
+      }
+      
       if (!validationResult.passed) {
         return {
           passed: false,
