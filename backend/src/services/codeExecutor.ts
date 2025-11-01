@@ -66,7 +66,12 @@ export class CodeExecutor {
       console.log(`  → Test result: ${validationResult.passed ? 'PASSED' : 'FAILED'}`);
       console.log(`  → Tests: ${validationResult.testsPassed}/${validationResult.totalTests}`);
       if (validationResult.error) {
-        console.log(`  → Error: ${validationResult.error.substring(0, 500)}`);
+        console.log(`  → Error output (first 1000 chars):`);
+        console.log(validationResult.error.substring(0, 1000));
+      }
+      if (validationResult.output) {
+        console.log(`  → Full output (first 1000 chars):`);
+        console.log(validationResult.output.substring(0, 1000));
       }
       
       if (!validationResult.passed) {
