@@ -56,7 +56,9 @@ export abstract class BaseHandler {
 
     try {
       // Attach to container FIRST, before starting
-      let outputPromise: Promise<string>;
+      // Capture chunks in arrays (will be populated by demuxStream)
+      const stdoutChunks: any[] = [];
+      const stderrChunks: any[] = [];
       
       if (captureOutput) {
         console.log('  → [DEBUG] Attaching to container streams...');
@@ -69,28 +71,21 @@ export abstract class BaseHandler {
 
         console.log('  → [DEBUG] Stream attached, demuxing...');
         
-        // Docker multiplexes stdout/stderr - we need to demux it
-        const stdout: any[] = [];
-        const stderr: any[] = [];
-        
+        // Docker multiplexes stdout/stderr - demux and capture in real-time
         this.docker.modem.demuxStream(stream, 
-          { write: (chunk: any) => stdout.push(chunk) } as any,
-          { write: (chunk: any) => stderr.push(chunk) } as any
+          { write: (chunk: any) => {
+            console.log(`  → [DEBUG] STDOUT chunk: ${chunk.length} bytes`);
+            stdoutChunks.push(chunk);
+          }} as any,
+          { write: (chunk: any) => {
+            console.log(`  → [DEBUG] STDERR chunk: ${chunk.length} bytes`);
+            stderrChunks.push(chunk);
+          }} as any
         );
-
-        outputPromise = new Promise((resolve) => {
-          stream.on('end', () => {
-            const stdoutStr = Buffer.concat(stdout).toString('utf8');
-            const stderrStr = Buffer.concat(stderr).toString('utf8');
-            const output = stdoutStr + stderrStr;
-            
-            console.log(`  → [DEBUG] Stream END! stdout: ${stdoutStr.length} bytes, stderr: ${stderrStr.length} bytes`);
-            resolve(output.trim());
-          });
-        });
+        
+        console.log('  → [DEBUG] DemuxStream configured, chunks will be captured');
       } else {
         console.log('  → [DEBUG] captureOutput is FALSE, skipping stream capture');
-        outputPromise = Promise.resolve('');
       }
 
       // NOW start the container
@@ -113,14 +108,18 @@ export abstract class BaseHandler {
       
       console.log('  → [BASE] Container finished with exit code:', result);
 
-      // Give streams time to flush before reading output
+      // Give streams time to flush before reading chunks
       console.log('  → [BASE] Waiting for streams to flush...');
       await new Promise(resolve => setTimeout(resolve, 500));
       
-      // Wait for output to finish
-      console.log('  → [BASE] Waiting for output promise...');
-      const output = await outputPromise;
-      console.log('  → [BASE] Output promise resolved');
+      // Read captured chunks
+      console.log('  → [BASE] Reading captured chunks...');
+      console.log(`  → [DEBUG] stdoutChunks: ${stdoutChunks.length} chunks`);
+      console.log(`  → [DEBUG] stderrChunks: ${stderrChunks.length} chunks`);
+      
+      const stdoutStr = stdoutChunks.length > 0 ? Buffer.concat(stdoutChunks).toString('utf8') : '';
+      const stderrStr = stderrChunks.length > 0 ? Buffer.concat(stderrChunks).toString('utf8') : '';
+      const output = (stdoutStr + stderrStr).trim();
       
       console.log('  → Captured output length:', output.length);
       if (output) {
