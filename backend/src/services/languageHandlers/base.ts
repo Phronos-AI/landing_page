@@ -50,29 +50,38 @@ export abstract class BaseHandler {
       let outputPromise: Promise<string>;
       
       if (captureOutput) {
+        console.log('  → [DEBUG] Attaching to container streams...');
         const stream: any = await container.attach({
           stream: true,
           stdout: true,
           stderr: true,
         });
 
+        console.log('  → [DEBUG] Stream attached, setting up listeners');
+        
         let output = '';
+        let dataChunks = 0;
         
         stream.on('data', (chunk: Buffer) => {
+          dataChunks++;
+          console.log(`  → [DEBUG] Got data chunk #${dataChunks}, size: ${chunk.length} bytes`);
           output += chunk.toString('utf8');
         });
 
         outputPromise = new Promise((resolve) => {
           stream.on('end', () => {
+            console.log(`  → [DEBUG] Stream END event! Total chunks: ${dataChunks}, raw output length: ${output.length}`);
             // Clean Docker headers from output
             const cleaned = output.split('\n')
               .map(line => line.length > 8 ? line.substring(8) : line)
               .join('\n')
               .trim();
+            console.log(`  → [DEBUG] After cleaning, output length: ${cleaned.length}`);
             resolve(cleaned);
           });
         });
       } else {
+        console.log('  → [DEBUG] captureOutput is FALSE, skipping stream capture');
         outputPromise = Promise.resolve('');
       }
 
