@@ -106,8 +106,13 @@ export abstract class BaseHandler {
         follow: false
       });
       
+      console.log('  → Raw log buffer length:', logBuffer.length);
+      
       // dockerode returns a Buffer directly
       const output = logBuffer.toString('utf8');
+      
+      console.log('  → Raw output length:', output.length);
+      console.log('  → Raw output preview:', output.substring(0, 200));
       
       // Clean Docker log headers (8-byte prefix on each line)
       const cleaned = output.split('\n')
@@ -119,6 +124,8 @@ export abstract class BaseHandler {
           return line;
         })
         .join('\n');
+      
+      console.log('  → Cleaned output length:', cleaned.length);
       
       return cleaned.trim();
     } catch (error) {
