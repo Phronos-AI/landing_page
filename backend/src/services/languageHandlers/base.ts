@@ -46,17 +46,23 @@ export abstract class BaseHandler {
     });
 
     try {
-      // Attach to container and capture output
-      const outputPromise = captureOutput ? new Promise<string>((resolve) => {
-        let output = '';
-        container.attach({
+      // Attach to container FIRST, before starting
+      let outputPromise: Promise<string>;
+      
+      if (captureOutput) {
+        const stream: any = await container.attach({
           stream: true,
           stdout: true,
           stderr: true,
-        }).then((stream: any) => {
-          stream.on('data', (chunk: Buffer) => {
-            output += chunk.toString('utf8');
-          });
+        });
+
+        let output = '';
+        
+        stream.on('data', (chunk: Buffer) => {
+          output += chunk.toString('utf8');
+        });
+
+        outputPromise = new Promise((resolve) => {
           stream.on('end', () => {
             // Clean Docker headers from output
             const cleaned = output.split('\n')
@@ -65,9 +71,12 @@ export abstract class BaseHandler {
               .trim();
             resolve(cleaned);
           });
-        }).catch(() => resolve(''));
-      }) : Promise.resolve('');
+        });
+      } else {
+        outputPromise = Promise.resolve('');
+      }
 
+      // NOW start the container
       await container.start();
 
       // Wait for container with timeout
