@@ -46,19 +46,27 @@ export abstract class BaseHandler {
     });
 
     try {
-      // Attach to container to capture output BEFORE starting
-      let output = '';
-      if (captureOutput) {
-        const stream: any = await container.attach({
+      // Attach to container and capture output
+      const outputPromise = captureOutput ? new Promise<string>((resolve) => {
+        let output = '';
+        container.attach({
           stream: true,
           stdout: true,
           stderr: true,
-        });
-
-        stream.on('data', (chunk: Buffer) => {
-          output += chunk.toString('utf8');
-        });
-      }
+        }).then((stream: any) => {
+          stream.on('data', (chunk: Buffer) => {
+            output += chunk.toString('utf8');
+          });
+          stream.on('end', () => {
+            // Clean Docker headers from output
+            const cleaned = output.split('\n')
+              .map(line => line.length > 8 ? line.substring(8) : line)
+              .join('\n')
+              .trim();
+            resolve(cleaned);
+          });
+        }).catch(() => resolve(''));
+      }) : Promise.resolve('');
 
       await container.start();
 
@@ -73,16 +81,8 @@ export abstract class BaseHandler {
         throw new Error(`Execution timeout after ${timeout}ms`);
       }
 
-      // Give a moment for stream to finish
-      await new Promise(resolve => setTimeout(resolve, 100));
-
-      // Clean Docker headers from output
-      if (captureOutput && output) {
-        output = output.split('\n')
-          .map(line => line.length > 8 ? line.substring(8) : line)
-          .join('\n')
-          .trim();
-      }
+      // Wait for output to finish
+      const output = await outputPromise;
       
       console.log('  → Captured output length:', output.length);
       if (output) {
