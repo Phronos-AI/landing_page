@@ -64,7 +64,7 @@ export abstract class BaseHandler {
         const stdout: any[] = [];
         const stderr: any[] = [];
         
-        container.modem.demuxStream(stream, 
+        this.docker.modem.demuxStream(stream, 
           { write: (chunk: any) => stdout.push(chunk) } as any,
           { write: (chunk: any) => stderr.push(chunk) } as any
         );
