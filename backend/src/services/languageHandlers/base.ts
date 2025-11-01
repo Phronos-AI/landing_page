@@ -55,29 +55,28 @@ export abstract class BaseHandler {
           stream: true,
           stdout: true,
           stderr: true,
+          logs: true, // Include existing logs
         });
 
-        console.log('  → [DEBUG] Stream attached, setting up listeners');
+        console.log('  → [DEBUG] Stream attached, demuxing...');
         
-        let output = '';
-        let dataChunks = 0;
+        // Docker multiplexes stdout/stderr - we need to demux it
+        const stdout: any[] = [];
+        const stderr: any[] = [];
         
-        stream.on('data', (chunk: Buffer) => {
-          dataChunks++;
-          console.log(`  → [DEBUG] Got data chunk #${dataChunks}, size: ${chunk.length} bytes`);
-          output += chunk.toString('utf8');
-        });
+        container.modem.demuxStream(stream, 
+          { write: (chunk: any) => stdout.push(chunk) } as any,
+          { write: (chunk: any) => stderr.push(chunk) } as any
+        );
 
         outputPromise = new Promise((resolve) => {
           stream.on('end', () => {
-            console.log(`  → [DEBUG] Stream END event! Total chunks: ${dataChunks}, raw output length: ${output.length}`);
-            // Clean Docker headers from output
-            const cleaned = output.split('\n')
-              .map(line => line.length > 8 ? line.substring(8) : line)
-              .join('\n')
-              .trim();
-            console.log(`  → [DEBUG] After cleaning, output length: ${cleaned.length}`);
-            resolve(cleaned);
+            const stdoutStr = Buffer.concat(stdout).toString('utf8');
+            const stderrStr = Buffer.concat(stderr).toString('utf8');
+            const output = stdoutStr + stderrStr;
+            
+            console.log(`  → [DEBUG] Stream END! stdout: ${stdoutStr.length} bytes, stderr: ${stderrStr.length} bytes`);
+            resolve(output.trim());
           });
         });
       } else {
