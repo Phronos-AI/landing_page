@@ -11,14 +11,9 @@ export class PythonHandler extends BaseHandler {
     await fs.writeFile(path.join(workDir, 'solution.py'), solution);
     await fs.writeFile(path.join(workDir, 'test_solution.py'), tests);
 
-    // Install pytest if needed
-    await this.runInContainer(workDir, [
-      'sh', '-c', 'pip install -q pytest 2>/dev/null || true'
-    ], { captureOutput: false });
-
-    // Run tests
+    // Install pytest AND run tests in the same container
     const { exitCode, output } = await this.runInContainer(workDir, [
-      'python', '-m', 'pytest', 'test_solution.py', '-v', '--tb=short'
+      'sh', '-c', 'pip install -q pytest 2>/dev/null && python -m pytest test_solution.py -v --tb=short'
     ]);
 
     const testResults = this.parseTestOutput(output);
