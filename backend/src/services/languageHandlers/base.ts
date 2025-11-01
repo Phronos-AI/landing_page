@@ -99,41 +99,32 @@ export abstract class BaseHandler {
    * Get container output (stdout + stderr)
    */
   private async getContainerOutput(container: Docker.Container): Promise<string> {
-    return new Promise((resolve, reject) => {
-      let output = '';
-      
-      container.logs({
+    try {
+      const logBuffer = await container.logs({
         stdout: true,
         stderr: true,
         follow: false
-      }, (err: any, stream: any) => {
-        if (err) {
-          console.error('Failed to get container logs:', err);
-          return reject(err);
-        }
-        
-        if (!stream) {
-          return resolve('');
-        }
-        
-        stream.on('data', (chunk: Buffer) => {
-          output += chunk.toString('utf8');
-        });
-        
-        stream.on('end', () => {
-          // Clean Docker log headers (8-byte prefix on each line)
-          const cleaned = output.split('\n')
-            .map(line => line.length > 8 ? line.substring(8) : line)
-            .join('\n');
-          resolve(cleaned.trim());
-        });
-        
-        stream.on('error', (err: Error) => {
-          console.error('Stream error:', err);
-          reject(err);
-        });
       });
-    });
+      
+      // dockerode returns a Buffer directly
+      const output = logBuffer.toString('utf8');
+      
+      // Clean Docker log headers (8-byte prefix on each line)
+      const cleaned = output.split('\n')
+        .map(line => {
+          // Docker uses 8-byte headers, strip them
+          if (line.length > 8) {
+            return line.substring(8);
+          }
+          return line;
+        })
+        .join('\n');
+      
+      return cleaned.trim();
+    } catch (error) {
+      console.error('Failed to get container logs:', error);
+      return '';
+    }
   }
 
   /**
