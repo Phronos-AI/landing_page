@@ -99,25 +99,40 @@ export abstract class BaseHandler {
    * Get container output (stdout + stderr)
    */
   private async getContainerOutput(container: Docker.Container): Promise<string> {
-    const stream: any = await container.logs({
-      stdout: true,
-      stderr: true,
-      follow: false,
-    });
-
-    return new Promise((resolve) => {
+    return new Promise((resolve, reject) => {
       let output = '';
-      stream.on('data', (chunk: Buffer) => {
-        // Docker multiplexes stdout/stderr with 8-byte headers
-        // Strip headers and decode
-        const lines = chunk.toString('utf8').split('\n');
-        for (const line of lines) {
-          if (line.length > 8) {
-            output += line.substring(8) + '\n';
-          }
+      
+      container.logs({
+        stdout: true,
+        stderr: true,
+        follow: false
+      }, (err: any, stream: any) => {
+        if (err) {
+          console.error('Failed to get container logs:', err);
+          return reject(err);
         }
+        
+        if (!stream) {
+          return resolve('');
+        }
+        
+        stream.on('data', (chunk: Buffer) => {
+          output += chunk.toString('utf8');
+        });
+        
+        stream.on('end', () => {
+          // Clean Docker log headers (8-byte prefix on each line)
+          const cleaned = output.split('\n')
+            .map(line => line.length > 8 ? line.substring(8) : line)
+            .join('\n');
+          resolve(cleaned.trim());
+        });
+        
+        stream.on('error', (err: Error) => {
+          console.error('Stream error:', err);
+          reject(err);
+        });
       });
-      stream.on('end', () => resolve(output.trim()));
     });
   }
 
