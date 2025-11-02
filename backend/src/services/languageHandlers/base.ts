@@ -79,33 +79,25 @@ export abstract class BaseHandler {
       let output = '';
       if (captureOutput) {
         console.log('  → [BASE] Fetching container logs...');
-        const logBuffer = await container.logs({
-          stdout: true,
-          stderr: true,
-          follow: false,
-        });
-        
-        // Docker multiplexes stdout/stderr into a single stream
-        // Need to demux it properly
-        const stdoutChunks: Buffer[] = [];
-        const stderrChunks: Buffer[] = [];
-        
-        this.docker.modem.demuxStream(
-          logBuffer as any,
-          { write: (chunk: Buffer) => stdoutChunks.push(chunk) } as any,
-          { write: (chunk: Buffer) => stderrChunks.push(chunk) } as any
-        );
-        
-        // Give demuxStream a moment to process
-        await new Promise(resolve => setTimeout(resolve, 100));
-        
-        const stdoutStr = stdoutChunks.length > 0 ? Buffer.concat(stdoutChunks).toString('utf8') : '';
-        const stderrStr = stderrChunks.length > 0 ? Buffer.concat(stderrChunks).toString('utf8') : '';
-        output = (stdoutStr + stderrStr).trim();
-        
-        console.log('  → [BASE] Captured output length:', output.length);
-        if (output) {
-          console.log('  → [BASE] Output preview:', output.substring(0, 200));
+        try {
+          const logBuffer = await container.logs({
+            stdout: true,
+            stderr: true,
+            follow: false,
+          });
+          
+          console.log('  → [BASE] Log buffer received, length:', logBuffer.length);
+          
+          // Simply convert buffer to string - Docker returns it as UTF-8
+          output = logBuffer.toString('utf8').trim();
+          
+          console.log('  → [BASE] Captured output length:', output.length);
+          if (output) {
+            console.log('  → [BASE] Output preview:', output.substring(0, 200));
+          }
+        } catch (error) {
+          console.log('  → [BASE] Error fetching logs:', error);
+          output = '';
         }
       }
       
