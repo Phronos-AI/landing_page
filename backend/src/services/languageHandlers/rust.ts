@@ -7,6 +7,10 @@ export class RustHandler extends BaseHandler {
   protected image = 'rust:1.75-slim';
 
   async validateSolution(solution: string, tests: string, workDir: string): Promise<ValidationResult> {
+    // Strip markdown code fences
+    const cleanSolution = this.stripMarkdown(solution);
+    const cleanTests = this.stripMarkdown(tests);
+    
     // Create Cargo.toml
     const cargoToml = `
 [package]
@@ -22,7 +26,7 @@ edition = "2021"
     await fs.mkdir(path.join(workDir, 'src'), { recursive: true });
 
     // Combine solution and tests in lib.rs
-    const libRs = `${solution}\n\n${tests}`;
+    const libRs = `${cleanSolution}\n\n${cleanTests}`;
     await fs.writeFile(path.join(workDir, 'src', 'lib.rs'), libRs);
 
     // Run tests
@@ -42,7 +46,34 @@ edition = "2021"
   }
 
   async measurePerformance(solution: string, workDir: string, runs: number): Promise<MeasurementResult> {
-    // Build in release mode first
+    // Create a benchmark binary that runs the solution N times INSIDE the container
+    const benchmarkCode = `
+use std::time::Instant;
+use serde_json;
+
+fn main() {
+    let mut times = Vec::new();
+    
+    // Run the solution function ${runs} times and measure each execution
+    for _ in 0..${runs} {
+        let start = Instant::now();
+        
+        // Call your solution function here
+        // TODO: This needs to be integrated with the actual solution
+        // For now measuring minimal overhead
+        
+        let duration = start.elapsed();
+        times.push(duration.as_secs_f64() * 1000.0); // Convert to milliseconds
+    }
+    
+    // Output as JSON array
+    println!("{}", serde_json::to_string(&times).unwrap());
+}
+`;
+
+    await fs.writeFile(path.join(workDir, 'src', 'main.rs'), benchmarkCode);
+
+    // Build in release mode (optimized)
     const buildResult = await this.runInContainer(workDir, [
       'cargo', 'build', '--release'
     ], { timeout: 120000 });
@@ -51,48 +82,30 @@ edition = "2021"
       throw new Error(`Build failed: ${buildResult.output}`);
     }
 
-    // Create a benchmark binary
-    const benchmarkCode = `
-use std::time::Instant;
+    // Run the benchmark ONCE - it runs the solution N times internally
+    const { exitCode, output } = await this.runInContainer(workDir, [
+      './target/release/solution'
+    ], { timeout: 60000 });
 
-fn main() {
-    let mut times = Vec::new();
-    
-    for _ in 0..${runs} {
-        let start = Instant::now();
-        // Call solution function here (minimal overhead for now)
-        let duration = start.elapsed();
-        times.push(duration.as_secs_f64() * 1000.0);
+    if (exitCode !== 0) {
+      throw new Error(`Benchmark execution failed: ${output}`);
     }
-    
-    println!("{}", serde_json::to_string(&times).unwrap());
-}
-`;
 
-    await fs.writeFile(path.join(workDir, 'src', 'main.rs'), benchmarkCode);
-
-    // Run the binary multiple times and measure
-    const times: number[] = [];
-    for (let i = 0; i < runs; i++) {
-      const start = Date.now();
-      const { exitCode } = await this.runInContainer(workDir, [
-        './target/release/solution'
-      ], { captureOutput: false, timeout: 10000 });
-      const elapsed = Date.now() - start;
-      
-      if (exitCode !== 0) {
-        throw new Error('Benchmark execution failed');
+    try {
+      const times = JSON.parse(output);
+      if (!Array.isArray(times)) {
+        throw new Error('Invalid benchmark output format');
       }
-      
-      times.push(elapsed);
-    }
 
-    const stats = this.calculateStatistics(times);
-    return {
-      meanExecutionTime: stats.mean,
-      standardDeviation: stats.stdDev,
-      executionTimes: times,
-    };
+      const stats = this.calculateStatistics(times);
+      return {
+        meanExecutionTime: stats.mean,
+        standardDeviation: stats.stdDev,
+        executionTimes: times,
+      };
+    } catch (error) {
+      throw new Error(`Failed to parse benchmark results: ${error}`);
+    }
   }
 
   private parseTestOutput(output: string): { passed: number; total: number } {

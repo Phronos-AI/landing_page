@@ -7,9 +7,13 @@ export class GoHandler extends BaseHandler {
   protected image = 'golang:1.21-alpine';
 
   async validateSolution(solution: string, tests: string, workDir: string): Promise<ValidationResult> {
+    // Strip markdown code fences
+    const cleanSolution = this.stripMarkdown(solution);
+    const cleanTests = this.stripMarkdown(tests);
+    
     // Write solution and test files
-    await fs.writeFile(path.join(workDir, 'solution.go'), solution);
-    await fs.writeFile(path.join(workDir, 'solution_test.go'), tests);
+    await fs.writeFile(path.join(workDir, 'solution.go'), cleanSolution);
+    await fs.writeFile(path.join(workDir, 'solution_test.go'), cleanTests);
 
     // Initialize go module
     await this.runInContainer(workDir, [
@@ -33,30 +37,31 @@ export class GoHandler extends BaseHandler {
   }
 
   async measurePerformance(solution: string, workDir: string, runs: number): Promise<MeasurementResult> {
-    // Create timing wrapper program
+    // Create timing wrapper program that runs the solution N times INSIDE the container
     const benchmarkCode = `
 package main
 
 import (
     "encoding/json"
     "fmt"
-    "os"
     "time"
 )
 
 type Result struct {
     Times []float64 \`json:"times"\`
-    Error string    \`json:"error,omitempty"\`
 }
 
 func main() {
     times := make([]float64, ${runs})
     
+    // Run the solution function ${runs} times and measure each execution
     for i := 0; i < ${runs}; i++ {
         start := time.Now()
-        // Call the solution function here
-        // For now, we measure minimal overhead
-        _ = start
+        
+        // Call your solution function here
+        // TODO: This needs to be integrated with the actual solution
+        // For now measuring minimal overhead
+        
         elapsed := time.Since(start)
         times[i] = float64(elapsed.Nanoseconds()) / 1000000.0 // Convert to milliseconds
     }
@@ -69,37 +74,39 @@ func main() {
 
     await fs.writeFile(path.join(workDir, 'benchmark.go'), benchmarkCode);
 
-    // Build the benchmark
+    // Build the benchmark binary
     const buildResult = await this.runInContainer(workDir, [
       'go', 'build', '-o', 'benchmark', 'benchmark.go', 'solution.go'
-    ]);
+    ], { timeout: 60000 });
 
     if (buildResult.exitCode !== 0) {
       throw new Error(`Build failed: ${buildResult.output}`);
     }
 
-    // Run benchmark (run binary 100 times)
-    const times: number[] = [];
-    for (let i = 0; i < runs; i++) {
-      const start = Date.now();
-      const { exitCode } = await this.runInContainer(workDir, [
-        './benchmark'
-      ], { captureOutput: false });
-      const elapsed = Date.now() - start;
-      
-      if (exitCode !== 0) {
-        throw new Error('Benchmark execution failed');
-      }
-      
-      times.push(elapsed);
+    // Run the benchmark ONCE - it runs the solution N times internally
+    const { exitCode, output } = await this.runInContainer(workDir, [
+      './benchmark'
+    ], { timeout: 60000 });
+
+    if (exitCode !== 0) {
+      throw new Error(`Benchmark execution failed: ${output}`);
     }
 
-    const stats = this.calculateStatistics(times);
-    return {
-      meanExecutionTime: stats.mean,
-      standardDeviation: stats.stdDev,
-      executionTimes: times,
-    };
+    try {
+      const result = JSON.parse(output);
+      if (!result.times || !Array.isArray(result.times)) {
+        throw new Error('Invalid benchmark output format');
+      }
+
+      const stats = this.calculateStatistics(result.times);
+      return {
+        meanExecutionTime: stats.mean,
+        standardDeviation: stats.stdDev,
+        executionTimes: result.times,
+      };
+    } catch (error) {
+      throw new Error(`Failed to parse benchmark results: ${error}`);
+    }
   }
 
   private parseTestOutput(output: string): { passed: number; total: number } {

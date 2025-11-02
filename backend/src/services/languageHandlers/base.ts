@@ -55,58 +55,7 @@ export abstract class BaseHandler {
     console.log('  → [BASE] Container created:', container.id);
 
     try {
-      // Attach to container FIRST, before starting
-      // Capture chunks in arrays (will be populated by demuxStream)
-      const stdoutChunks: any[] = [];
-      const stderrChunks: any[] = [];
-      
-      if (captureOutput) {
-        console.log('  → [DEBUG] Attaching to container streams...');
-        const stream: any = await container.attach({
-          stream: true,
-          stdout: true,
-          stderr: true,
-          // NO logs: true - this prevents the stream from working properly!
-        });
-
-        console.log('  → [DEBUG] Stream attached, type:', typeof stream);
-        console.log('  → [DEBUG] Stream has on method:', typeof stream.on === 'function');
-        
-        // Docker multiplexes stdout/stderr - demux and capture in real-time
-        this.docker.modem.demuxStream(stream, 
-          { write: (chunk: any) => {
-            console.log(`  → [DEBUG] STDOUT chunk: ${chunk.length} bytes`);
-            stdoutChunks.push(chunk);
-          }} as any,
-          { write: (chunk: any) => {
-            console.log(`  → [DEBUG] STDERR chunk: ${chunk.length} bytes`);
-            stderrChunks.push(chunk);
-          }} as any
-        );
-        
-        console.log('  → [DEBUG] DemuxStream configured, chunks will be captured');
-        
-        // DIAGNOSTIC: Add direct listeners to see if stream emits data events
-        stream.on('data', (chunk: any) => {
-          console.log(`  → [DEBUG] RAW stream data event: ${chunk.length} bytes`);
-        });
-        stream.on('end', () => {
-          console.log(`  → [DEBUG] RAW stream END event`);
-        });
-        stream.on('error', (err: any) => {
-          console.log(`  → [DEBUG] RAW stream ERROR:`, err);
-        });
-        
-        // Ensure stream is active - might need to resume or pipe
-        if (stream.resume && typeof stream.resume === 'function') {
-          stream.resume();
-          console.log('  → [DEBUG] Stream resumed');
-        }
-      } else {
-        console.log('  → [DEBUG] captureOutput is FALSE, skipping stream capture');
-      }
-
-      // NOW start the container
+      // Start the container
       console.log('  → [BASE] Starting container...');
       await container.start();
       console.log('  → [BASE] Container started');
@@ -126,22 +75,38 @@ export abstract class BaseHandler {
       
       console.log('  → [BASE] Container finished with exit code:', result);
 
-      // Give streams time to flush before reading chunks
-      console.log('  → [BASE] Waiting for streams to flush...');
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
-      // Read captured chunks
-      console.log('  → [BASE] Reading captured chunks...');
-      console.log(`  → [DEBUG] stdoutChunks: ${stdoutChunks.length} chunks`);
-      console.log(`  → [DEBUG] stderrChunks: ${stderrChunks.length} chunks`);
-      
-      const stdoutStr = stdoutChunks.length > 0 ? Buffer.concat(stdoutChunks).toString('utf8') : '';
-      const stderrStr = stderrChunks.length > 0 ? Buffer.concat(stderrChunks).toString('utf8') : '';
-      const output = (stdoutStr + stderrStr).trim();
-      
-      console.log('  → Captured output length:', output.length);
-      if (output) {
-        console.log('  → Captured output preview:', output.substring(0, 200));
+      // Get output using logs() after container finishes (simple and reliable!)
+      let output = '';
+      if (captureOutput) {
+        console.log('  → [BASE] Fetching container logs...');
+        const logBuffer = await container.logs({
+          stdout: true,
+          stderr: true,
+          follow: false,
+        });
+        
+        // Docker multiplexes stdout/stderr into a single stream
+        // Need to demux it properly
+        const stdoutChunks: Buffer[] = [];
+        const stderrChunks: Buffer[] = [];
+        
+        this.docker.modem.demuxStream(
+          logBuffer as any,
+          { write: (chunk: Buffer) => stdoutChunks.push(chunk) } as any,
+          { write: (chunk: Buffer) => stderrChunks.push(chunk) } as any
+        );
+        
+        // Give demuxStream a moment to process
+        await new Promise(resolve => setTimeout(resolve, 100));
+        
+        const stdoutStr = stdoutChunks.length > 0 ? Buffer.concat(stdoutChunks).toString('utf8') : '';
+        const stderrStr = stderrChunks.length > 0 ? Buffer.concat(stderrChunks).toString('utf8') : '';
+        output = (stdoutStr + stderrStr).trim();
+        
+        console.log('  → [BASE] Captured output length:', output.length);
+        if (output) {
+          console.log('  → [BASE] Output preview:', output.substring(0, 200));
+        }
       }
       
       return {
