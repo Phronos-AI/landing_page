@@ -66,10 +66,11 @@ export abstract class BaseHandler {
           stream: true,
           stdout: true,
           stderr: true,
-          logs: true, // Include existing logs
+          // NO logs: true - this prevents the stream from working properly!
         });
 
-        console.log('  → [DEBUG] Stream attached, demuxing...');
+        console.log('  → [DEBUG] Stream attached, type:', typeof stream);
+        console.log('  → [DEBUG] Stream has on method:', typeof stream.on === 'function');
         
         // Docker multiplexes stdout/stderr - demux and capture in real-time
         this.docker.modem.demuxStream(stream, 
@@ -84,6 +85,12 @@ export abstract class BaseHandler {
         );
         
         console.log('  → [DEBUG] DemuxStream configured, chunks will be captured');
+        
+        // Ensure stream is active - might need to resume or pipe
+        if (stream.resume && typeof stream.resume === 'function') {
+          stream.resume();
+          console.log('  → [DEBUG] Stream resumed');
+        }
       } else {
         console.log('  → [DEBUG] captureOutput is FALSE, skipping stream capture');
       }
