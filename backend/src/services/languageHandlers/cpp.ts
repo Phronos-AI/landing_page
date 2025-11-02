@@ -44,39 +44,101 @@ export class CppHandler extends BaseHandler {
   }
 
   async measurePerformance(solution: string, workDir: string, runs: number): Promise<MeasurementResult> {
-    // Compile solution in optimized mode
+    // Read test file and extract a representative workload
+    const testFilePath = path.join(workDir, 'test_solution.cpp');
+    const testContent = await fs.readFile(testFilePath, 'utf-8');
+    
+    // Extract test functions (look for TEST, TEST_CASE, etc.)
+    const testMatches = testContent.match(/(?:TEST|TEST_CASE)\s*\([^)]*\)\s*\{[\s\S]*?\n\}/g);
+    
+    if (!testMatches || testMatches.length === 0) {
+      throw new Error('No test functions found in C++ code');
+    }
+    
+    // Pick middle test
+    const middleIdx = Math.floor(testMatches.length / 2);
+    let testFunc = testMatches[middleIdx];
+    
+    // Extract test body
+    const bodyMatch = testFunc.match(/\{([\s\S]*)\}/);
+    if (!bodyMatch) {
+      throw new Error('Could not extract test body');
+    }
+    
+    let workloadCode = bodyMatch[1]
+      .replace(/(?:ASSERT|EXPECT|REQUIRE|CHECK).*?;/g, '') // Remove assertions
+      .trim();
+    
+    // Create benchmark program
+    const benchmarkCode = `
+#include <iostream>
+#include <chrono>
+#include <vector>
+#include "solution.cpp"
+
+int main() {
+    std::vector<double> times;
+    
+    // Run the workload ${runs} times and measure
+    for (int i = 0; i < ${runs}; i++) {
+        auto start = std::chrono::high_resolution_clock::now();
+        
+        // Run extracted workload
+        ${workloadCode}
+        
+        auto end = std::chrono::high_resolution_clock::now();
+        auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
+        times.push_back(duration.count() / 1000.0); // Convert to milliseconds
+    }
+    
+    // Output as JSON
+    std::cout << "{\\"times\\":[";
+    for (size_t i = 0; i < times.size(); i++) {
+        std::cout << times[i];
+        if (i < times.size() - 1) std::cout << ",";
+    }
+    std::cout << "]}" << std::endl;
+    
+    return 0;
+}
+`;
+    
+    await fs.writeFile(path.join(workDir, 'benchmark.cpp'), benchmarkCode);
+    
+    // Compile benchmark in optimized mode
     const compileResult = await this.runInContainer(workDir, [
       'sh', '-c',
-      'g++ -std=c++17 -O3 -o solution solution.cpp 2>&1'
+      'g++ -std=c++17 -O3 -o benchmark benchmark.cpp 2>&1'
     ]);
 
     if (compileResult.exitCode !== 0) {
-      throw new Error(`Compilation failed: ${compileResult.output}`);
+      throw new Error(`Benchmark compilation failed: ${compileResult.output}`);
     }
 
-    // Run the binary multiple times
-    const times: number[] = [];
-    
-    for (let i = 0; i < runs; i++) {
-      const start = Date.now();
-      const { exitCode } = await this.runInContainer(workDir, [
-        './solution'
-      ], { captureOutput: false, timeout: 10000 });
-      const elapsed = Date.now() - start;
-      
-      if (exitCode !== 0) {
-        throw new Error('Execution failed');
+    // Run benchmark
+    const { exitCode, output } = await this.runInContainer(workDir, [
+      './benchmark'
+    ], { timeout: 60000 });
+
+    if (exitCode !== 0) {
+      throw new Error(`Benchmark execution failed: ${output}`);
+    }
+
+    try {
+      const result = JSON.parse(output);
+      if (!result.times || !Array.isArray(result.times)) {
+        throw new Error('Invalid benchmark output format');
       }
       
-      times.push(elapsed);
+      const stats = this.calculateStatistics(result.times);
+      return {
+        meanExecutionTime: stats.mean,
+        standardDeviation: stats.stdDev,
+        executionTimes: result.times,
+      };
+    } catch (error) {
+      throw new Error(`Failed to parse benchmark results: ${error}`);
     }
-
-    const stats = this.calculateStatistics(times);
-    return {
-      meanExecutionTime: stats.mean,
-      standardDeviation: stats.stdDev,
-      executionTimes: times,
-    };
   }
 
   private parseTestOutput(output: string): { passed: number; total: number } {

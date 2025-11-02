@@ -37,7 +37,33 @@ export class GoHandler extends BaseHandler {
   }
 
   async measurePerformance(solution: string, workDir: string, runs: number): Promise<MeasurementResult> {
-    // Create timing wrapper program that runs the solution N times INSIDE the container
+    // Read test file and extract a representative workload
+    const testFilePath = path.join(workDir, 'solution_test.go');
+    const testContent = await fs.readFile(testFilePath, 'utf-8');
+    
+    // Extract test functions (look for func Test...)
+    const testMatches = testContent.match(/func\s+Test\w+\s*\([^)]*\)\s*\{[\s\S]*?\n\}/g);
+    
+    if (!testMatches || testMatches.length === 0) {
+      throw new Error('No test functions found in Go code');
+    }
+    
+    // Pick middle test
+    const middleIdx = Math.floor(testMatches.length / 2);
+    let testFunc = testMatches[middleIdx];
+    
+    // Extract test body (between { and })
+    const bodyMatch = testFunc.match(/\{([\s\S]*)\}/);
+    if (!bodyMatch) {
+      throw new Error('Could not extract test body');
+    }
+    
+    let workloadCode = bodyMatch[1]
+      .replace(/t\.\w+\(.*?\)/g, '') // Remove test assertions (t.Assert, t.Equal, etc.)
+      .replace(/if\s+err\s*!=\s*nil\s*\{[\s\S]*?\}/g, '') // Remove error checks
+      .trim();
+    
+    // Create timing wrapper program that runs the workload N times
     const benchmarkCode = `
 package main
 
@@ -54,13 +80,12 @@ type Result struct {
 func main() {
     times := make([]float64, ${runs})
     
-    // Run the solution function ${runs} times and measure each execution
+    // Run the workload ${runs} times and measure each execution
     for i := 0; i < ${runs}; i++ {
         start := time.Now()
         
-        // Call your solution function here
-        // TODO: This needs to be integrated with the actual solution
-        // For now measuring minimal overhead
+        // Run extracted workload
+        ${workloadCode}
         
         elapsed := time.Since(start)
         times[i] = float64(elapsed.Nanoseconds()) / 1000000.0 // Convert to milliseconds

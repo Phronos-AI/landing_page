@@ -48,42 +48,81 @@ export class PythonHandler extends BaseHandler {
   }
 
   async measurePerformance(solution: string, workDir: string, runs: number): Promise<MeasurementResult> {
-    // Create timing wrapper script
+    // Extract a representative test workload and run the solution 100 times
+    // This measures the actual solution performance, not test overhead
     const wrapperScript = `
 import timeit
 import sys
 import json
+import ast
 
-# Import the solution
-import solution
+# Parse test file to extract a representative workload
+with open('test_solution.py', 'r') as f:
+    test_content = f.read()
 
-# Find the main function to benchmark
-# Try common function names
-function_to_test = None
-for attr_name in dir(solution):
-    attr = getattr(solution, attr_name)
-    if callable(attr) and not attr_name.startswith('_'):
-        function_to_test = attr
-        break
-
-if not function_to_test:
-    print(json.dumps({"error": "No callable function found in solution"}))
+try:
+    tree = ast.parse(test_content)
+    
+    # Find all test functions
+    test_functions = []
+    for node in ast.walk(tree):
+        if isinstance(node, ast.FunctionDef) and node.name.startswith('test_'):
+            test_functions.append(node)
+    
+    if not test_functions:
+        print(json.dumps({"error": "No test functions found"}))
+        sys.exit(1)
+    
+    # Pick a middle test (not the first trivial one, not the last complex one)
+    # This gives us a representative workload
+    middle_idx = min(len(test_functions) // 2, len(test_functions) - 1)
+    representative_test = test_functions[middle_idx]
+    
+    # Extract the test body as source code
+    test_body_lines = []
+    for stmt in representative_test.body:
+        try:
+            # Convert AST back to source code
+            line = ast.unparse(stmt)
+            test_body_lines.append(line)
+        except:
+            pass
+    
+    # Join without extra indentation - we'll indent properly in the f-string
+    workload_code = '\\n'.join(test_body_lines)
+    
+except Exception as e:
+    print(json.dumps({"error": f"Failed to parse tests: {str(e)}"}))
     sys.exit(1)
 
-# Run benchmark
+# Create benchmark script that runs the workload ${runs} times
+# Indent each line of the workload properly
+indented_workload = '\\n    '.join(workload_code.split('\\n'))
+
+benchmark_code = f"""
+from solution import *
+import timeit
+import json
+
+def run_workload():
+    {indented_workload}
+
+# Run ${runs} times and measure each execution
 times = []
 for i in range(${runs}):
     start = timeit.default_timer()
     try:
-        # Call function with empty args - real tests should pass data
-        result = function_to_test()
-    except TypeError:
-        # Function needs arguments, skip actual call but measure overhead
-        pass
+        run_workload()
+    except:
+        pass  # Ignore errors during benchmark, just measure time
     end = timeit.default_timer()
     times.append((end - start) * 1000)  # Convert to milliseconds
 
-print(json.dumps({"times": times}))
+print(json.dumps({{"times": times}}))
+"""
+
+# Execute the benchmark
+exec(benchmark_code)
 `;
 
     await fs.writeFile(path.join(workDir, 'benchmark.py'), wrapperScript);

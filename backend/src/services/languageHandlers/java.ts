@@ -43,29 +43,93 @@ export class JavaHandler extends BaseHandler {
   }
 
   async measurePerformance(solution: string, workDir: string, runs: number): Promise<MeasurementResult> {
-    // Run the compiled solution multiple times
-    const times: number[] = [];
+    // Read test file and extract a representative workload
+    const testFilePath = path.join(workDir, 'SolutionTest.java');
+    const testContent = await fs.readFile(testFilePath, 'utf-8');
     
-    for (let i = 0; i < runs; i++) {
-      const start = Date.now();
-      const { exitCode } = await this.runInContainer(workDir, [
-        'java', 'Solution'
-      ], { captureOutput: false, timeout: 10000 });
-      const elapsed = Date.now() - start;
-      
-      if (exitCode !== 0) {
-        throw new Error('Execution failed');
+    // Extract test methods (look for @Test annotation)
+    const testMatches = testContent.match(/@Test[\s\S]*?public\s+void\s+\w+\s*\(\)\s*\{[\s\S]*?\n    \}/g);
+    
+    if (!testMatches || testMatches.length === 0) {
+      throw new Error('No test methods found in Java code');
+    }
+    
+    // Pick middle test
+    const middleIdx = Math.floor(testMatches.length / 2);
+    let testMethod = testMatches[middleIdx];
+    
+    // Extract test body
+    const bodyMatch = testMethod.match(/\{([\s\S]*)\}/);
+    if (!bodyMatch) {
+      throw new Error('Could not extract test body');
+    }
+    
+    let workloadCode = bodyMatch[1]
+      .replace(/assert\w+\(.*?\);/g, '') // Remove assertions
+      .trim();
+    
+    // Create benchmark class
+    const benchmarkCode = `
+import com.google.gson.Gson;
+import java.util.*;
+
+public class Benchmark {
+    public static void main(String[] args) {
+        List<Double> times = new ArrayList<>();
+        
+        // Run the workload ${runs} times and measure
+        for (int i = 0; i < ${runs}; i++) {
+            long start = System.nanoTime();
+            
+            // Run extracted workload
+            ${workloadCode}
+            
+            long elapsed = System.nanoTime() - start;
+            times.add(elapsed / 1000000.0); // Convert to milliseconds
+        }
+        
+        // Output as JSON
+        Gson gson = new Gson();
+        System.out.println(gson.toJson(Collections.singletonMap("times", times)));
+    }
+}
+`;
+    
+    await fs.writeFile(path.join(workDir, 'Benchmark.java'), benchmarkCode);
+    
+    // Compile benchmark
+    const compileResult = await this.runInContainer(workDir, [
+      'javac', 'Benchmark.java'
+    ]);
+    
+    if (compileResult.exitCode !== 0) {
+      throw new Error(`Benchmark compilation failed: ${compileResult.output}`);
+    }
+    
+    // Run benchmark
+    const { exitCode, output } = await this.runInContainer(workDir, [
+      'java', 'Benchmark'
+    ], { timeout: 60000 });
+    
+    if (exitCode !== 0) {
+      throw new Error(`Benchmark execution failed: ${output}`);
+    }
+    
+    try {
+      const result = JSON.parse(output);
+      if (!result.times || !Array.isArray(result.times)) {
+        throw new Error('Invalid benchmark output format');
       }
       
-      times.push(elapsed);
+      const stats = this.calculateStatistics(result.times);
+      return {
+        meanExecutionTime: stats.mean,
+        standardDeviation: stats.stdDev,
+        executionTimes: result.times,
+      };
+    } catch (error) {
+      throw new Error(`Failed to parse benchmark results: ${error}`);
     }
-
-    const stats = this.calculateStatistics(times);
-    return {
-      meanExecutionTime: stats.mean,
-      standardDeviation: stats.stdDev,
-      executionTimes: times,
-    };
   }
 
   private parseTestOutput(output: string): { passed: number; total: number } {

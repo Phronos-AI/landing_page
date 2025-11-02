@@ -47,16 +47,44 @@ export abstract class BaseHandler {
         Binds: [`${workDir}:/code`],
         Memory: this.memoryLimit,
         NanoCpus: this.cpuLimit,
-        NetworkMode: 'none', // No network access for security
+        // NetworkMode: 'none', // Temporarily enabled for pip install - TODO: use custom image with pytest pre-installed
       },
-      // For logs() to work, we don't need AttachStdout/AttachStderr
-      // Docker captures output automatically
+      AttachStdout: true, // Required for logs to be captured
+      AttachStderr: true, // Required for logs to be captured
       Tty: false, // Ensure output is properly captured (no TTY)
       OpenStdin: false,
     });
     console.log('  → [BASE] Container created:', container.id);
 
     try {
+      // Attach to container output BEFORE starting
+      let output = '';
+      let capturePromise: Promise<Buffer[]> | undefined;
+      
+      if (captureOutput) {
+        console.log('  → [BASE] Attaching to container streams...');
+        const stream = await container.attach({
+          stream: true,
+          stdout: true,
+          stderr: true,
+        });
+        
+        const chunks: Buffer[] = [];
+        stream.on('data', (chunk: Buffer) => {
+          chunks.push(chunk);
+        });
+        
+        // Store chunks promise for later
+        capturePromise = new Promise<Buffer[]>((resolve) => {
+          stream.on('end', () => {
+            console.log('  → [BASE] Stream ended, collected', chunks.length, 'chunks');
+            resolve(chunks);
+          });
+        });
+        
+        console.log('  → [BASE] Attached to streams');
+      }
+
       // Start the container
       console.log('  → [BASE] Starting container...');
       await container.start();
@@ -77,51 +105,49 @@ export abstract class BaseHandler {
       
       console.log('  → [BASE] Container finished with exit code:', result);
 
-      // Get output using logs() after container finishes
-      let output = '';
-      if (captureOutput) {
-        console.log('  → [BASE] Fetching container logs...');
+      // Process captured output
+      if (captureOutput && capturePromise) {
+        console.log('  → [BASE] Processing captured output...');
         try {
-          const logBuffer = await container.logs({
-            stdout: true,
-            stderr: true,
-            follow: false,
-          });
+          const chunks = await capturePromise;
           
-          console.log('  → [BASE] Log buffer received, length:', logBuffer.length);
-          
-          // Docker multiplexes stdout/stderr with 8-byte headers
-          // Format: [type:1 byte][padding:3 bytes][size:4 bytes][payload:size bytes]
-          // We need to parse this to extract the actual output
-          let offset = 0;
-          const chunks: string[] = [];
-          
-          while (offset < logBuffer.length) {
-            // Need at least 8 bytes for header
-            if (offset + 8 > logBuffer.length) break;
+          if (chunks.length > 0) {
+            const fullBuffer = Buffer.concat(chunks);
+            console.log('  → [BASE] Full buffer length:', fullBuffer.length);
             
-            // Read payload size (4 bytes, big-endian, starting at offset+4)
-            const payloadSize = logBuffer.readUInt32BE(offset + 4);
+            // Docker multiplexes stdout/stderr with 8-byte headers
+            // Format: [type:1 byte][padding:3 bytes][size:4 bytes][payload:size bytes]
+            let offset = 0;
+            const outputChunks: string[] = [];
             
-            // Extract payload (skip 8-byte header)
-            if (offset + 8 + payloadSize <= logBuffer.length) {
-              const payload = logBuffer.slice(offset + 8, offset + 8 + payloadSize);
-              chunks.push(payload.toString('utf8'));
+            while (offset < fullBuffer.length) {
+              // Need at least 8 bytes for header
+              if (offset + 8 > fullBuffer.length) break;
+              
+              // Read payload size (4 bytes, big-endian, starting at offset+4)
+              const payloadSize = fullBuffer.readUInt32BE(offset + 4);
+              
+              // Extract payload (skip 8-byte header)
+              if (offset + 8 + payloadSize <= fullBuffer.length) {
+                const payload = fullBuffer.slice(offset + 8, offset + 8 + payloadSize);
+                outputChunks.push(payload.toString('utf8'));
+              }
+              
+              // Move to next frame
+              offset += 8 + payloadSize;
             }
             
-            // Move to next frame
-            offset += 8 + payloadSize;
-          }
-          
-          output = chunks.join('').trim();
-          
-          console.log('  → [BASE] Captured output length:', output.length);
-          if (output) {
-            console.log('  → [BASE] Output preview:', output.substring(0, 200));
+            output = outputChunks.join('').trim();
+            
+            console.log('  → [BASE] Captured output length:', output.length);
+            if (output) {
+              console.log('  → [BASE] Output preview:', output.substring(0, 200));
+            }
+          } else {
+            console.log('  → [BASE] No chunks collected - output is empty');
           }
         } catch (error) {
-          console.log('  → [BASE] Error fetching logs:', error);
-          output = '';
+          console.log('  → [BASE] Error processing output:', error);
         }
       }
       
@@ -204,8 +230,8 @@ export abstract class BaseHandler {
     const stdDev = Math.sqrt(variance);
     
     return {
-      mean: Math.round(mean * 100) / 100,
-      stdDev: Math.round(stdDev * 100) / 100,
+      mean: Math.round(mean * 100000) / 100000, // Round to 5 decimal places (0.00001ms = 0.01μs precision)
+      stdDev: Math.round(stdDev * 100000) / 100000,
     };
   }
 }

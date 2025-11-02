@@ -46,33 +46,49 @@ export class JavaScriptHandler extends BaseHandler {
   }
 
   async measurePerformance(solution: string, workDir: string, runs: number): Promise<MeasurementResult> {
-    // Create timing wrapper script
+    // Extract a representative test workload and run the solution 100 times
     const wrapperScript = `
 const { performance } = require('perf_hooks');
+const fs = require('fs');
 const solution = require('./solution.js');
 
-// Find the main function to benchmark
-let functionToTest = null;
-for (const key in solution) {
-  if (typeof solution[key] === 'function') {
-    functionToTest = solution[key];
-    break;
-  }
-}
+// Read and parse test file to extract a representative workload
+const testContent = fs.readFileSync('solution.test.js', 'utf8');
 
-if (!functionToTest) {
-  console.log(JSON.stringify({ error: 'No function found in solution' }));
+// Find test function bodies (looking for test(...) or it(...) blocks)
+// Extract a middle test as representative workload
+const testMatches = testContent.match(/(?:test|it)\\s*\\([^,]+,\\s*(?:async\\s+)?\\([^)]*\\)\\s*=>\\s*\\{([^}]+)\\}/g);
+
+if (!testMatches || testMatches.length === 0) {
+  console.log(JSON.stringify({ error: 'No test functions found' }));
   process.exit(1);
 }
 
-// Run benchmark
+// Pick middle test
+const middleIdx = Math.floor(testMatches.length / 2);
+let testBody = testMatches[middleIdx];
+
+// Extract just the body part (everything inside the function)
+const bodyMatch = testBody.match(/\\{([\\s\\S]+)\\}/);
+if (!bodyMatch) {
+  console.log(JSON.stringify({ error: 'Could not extract test body' }));
+  process.exit(1);
+}
+
+const workloadCode = bodyMatch[1];
+
+// Create benchmark function
+const cleanedWorkload = workloadCode.replace(/expect.*$/gm, '');  // Remove expect assertions
+const runWorkload = new Function('solution', cleanedWorkload);
+
+// Run ${runs} times and measure
 const times = [];
 for (let i = 0; i < ${runs}; i++) {
   const start = performance.now();
   try {
-    functionToTest();
+    runWorkload(solution);
   } catch (e) {
-    // Function might need arguments, that's ok
+    // Ignore errors during benchmark
   }
   const end = performance.now();
   times.push(end - start);

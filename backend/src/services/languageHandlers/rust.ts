@@ -46,21 +46,49 @@ edition = "2021"
   }
 
   async measurePerformance(solution: string, workDir: string, runs: number): Promise<MeasurementResult> {
-    // Create a benchmark binary that runs the solution N times INSIDE the container
+    // Read test file and extract a representative workload
+    const testFilePath = path.join(workDir, 'src', 'lib.rs');
+    const testContent = await fs.readFile(testFilePath, 'utf-8');
+    
+    // Extract test functions (look for #[test] or #[cfg(test)])
+    const testMatches = testContent.match(/#\[test\]\s*fn\s+\w+\s*\(\)\s*\{[\s\S]*?\n\}/g);
+    
+    if (!testMatches || testMatches.length === 0) {
+      throw new Error('No test functions found in Rust code');
+    }
+    
+    // Pick middle test
+    const middleIdx = Math.floor(testMatches.length / 2);
+    let testFunc = testMatches[middleIdx];
+    
+    // Extract test body (between { and })
+    const bodyMatch = testFunc.match(/\{([\s\S]*)\}/);
+    if (!bodyMatch) {
+      throw new Error('Could not extract test body');
+    }
+    
+    let workloadCode = bodyMatch[1]
+      .replace(/assert.*?;/g, '') // Remove assertions
+      .trim();
+    
+    // Create a benchmark binary that runs the workload N times
     const benchmarkCode = `
 use std::time::Instant;
 use serde_json;
 
+// Include solution module
+mod solution;
+use solution::*;
+
 fn main() {
     let mut times = Vec::new();
     
-    // Run the solution function ${runs} times and measure each execution
+    // Run the workload ${runs} times and measure each execution
     for _ in 0..${runs} {
         let start = Instant::now();
         
-        // Call your solution function here
-        // TODO: This needs to be integrated with the actual solution
-        // For now measuring minimal overhead
+        // Run extracted workload
+        ${workloadCode}
         
         let duration = start.elapsed();
         times.push(duration.as_secs_f64() * 1000.0); // Convert to milliseconds

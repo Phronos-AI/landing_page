@@ -79,13 +79,28 @@ class OpenRouterClient {
       messages: [
         {
           role: "system",
-          content: `You are a test generation expert for ${config.name}. Given a task description, generate comprehensive unit tests using ${config.testFramework}. 
+          content: `You are a test generation expert for ${config.name}. Given a task description, generate comprehensive unit tests using ${config.testFramework}.
 
-CRITICAL: Return ONLY raw ${config.name} code. Do NOT wrap in markdown code blocks. Do NOT use \`\`\`python or \`\`\`rust or any other markdown formatting. Start directly with the code.`,
+CRITICAL RULES:
+1. Return ONLY test code - do NOT include the actual solution implementation
+2. Tests must import from a separate file (e.g., "from solution import function_name" for Python)
+3. Do NOT wrap in markdown code blocks - no \`\`\`python or \`\`\`${language} tags
+4. Start directly with test code (imports and test functions only)
+5. Include comprehensive test cases covering edge cases, normal cases, and error conditions
+6. Use proper ${config.testFramework} syntax and assertions`,
         },
         {
           role: "user",
-          content: `Generate ${config.name} unit tests for this task:\n\n${description}\n\nUse ${config.testFramework} and include all necessary imports.`,
+          content: `Task description:
+${description}
+
+Generate ${config.testFramework} tests that:
+- Import the solution from an external module (not defined in tests)
+- Test all requirements thoroughly
+- Cover edge cases and error conditions
+- Use clear, descriptive test names
+
+Return ONLY the test code, starting with imports.`,
         },
       ],
     });

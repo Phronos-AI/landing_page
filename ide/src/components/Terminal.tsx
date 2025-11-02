@@ -21,6 +21,17 @@ interface TerminalProps {
   projectName: string;
 }
 
+// Helper function to format execution time with appropriate units
+function formatExecutionTime(timeMs: number | undefined | null): string {
+  if (timeMs === undefined || timeMs === null) return "N/A";
+  // If less than 0.01ms, show in microseconds
+  if (timeMs < 0.01) {
+    return `${(timeMs * 1000).toFixed(2)}μs`;
+  }
+  // Otherwise show in milliseconds
+  return `${timeMs.toFixed(2)}ms`;
+}
+
 export function Terminal({ onCloseAllTabs, projectName }: TerminalProps) {
   const [lines, setLines] = useState<TerminalLine[]>([]);
   const [input, setInput] = useState("");
@@ -159,9 +170,7 @@ export function Terminal({ onCloseAllTabs, projectName }: TerminalProps) {
           const testsInfo = result.totalTests 
             ? `${result.testsPassed}/${result.totalTests}`
             : "N/A";
-          const timeInfo = result.meanExecutionTime 
-            ? `${result.meanExecutionTime.toFixed(2)}ms` 
-            : "N/A";
+          const timeInfo = formatExecutionTime(result.meanExecutionTime);
           const originalTime = optimizationState.originalMeanTime || 0;
           const improvement = result.meanExecutionTime && originalTime > 0
             ? codeExecutor.calculateImprovement(originalTime, result.meanExecutionTime)
@@ -311,9 +320,7 @@ export function Terminal({ onCloseAllTabs, projectName }: TerminalProps) {
           const testsInfo = result.totalTests 
             ? `${result.testsPassed}/${result.totalTests}`
             : "N/A";
-          const timeInfo = result.meanExecutionTime 
-            ? `${result.meanExecutionTime.toFixed(2)}ms` 
-            : "N/A";
+          const timeInfo = formatExecutionTime(result.meanExecutionTime);
           const status = result.status === "passed" ? "PASSED" : 
                         result.status === "failed" ? "FAILED" : "ERROR";
           
@@ -327,7 +334,7 @@ export function Terminal({ onCloseAllTabs, projectName }: TerminalProps) {
 
         if (competitionResult.winner) {
           terminal.addSuccess(
-            `Winner: ${competitionResult.winner.modelName} (${competitionResult.winner.meanExecutionTime?.toFixed(2)}ms mean over 100 runs)`
+            `Winner: ${competitionResult.winner.modelName} (${formatExecutionTime(competitionResult.winner.meanExecutionTime)} mean over 100 runs)`
           );
           
           // Auto-adopt the winning solution
