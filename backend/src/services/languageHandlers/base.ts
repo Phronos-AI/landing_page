@@ -49,8 +49,10 @@ export abstract class BaseHandler {
         NanoCpus: this.cpuLimit,
         NetworkMode: 'none', // No network access for security
       },
-      AttachStdout: captureOutput,
-      AttachStderr: captureOutput,
+      // For logs() to work, we don't need AttachStdout/AttachStderr
+      // Docker captures output automatically
+      Tty: false, // Ensure output is properly captured (no TTY)
+      OpenStdin: false,
     });
     console.log('  → [BASE] Container created:', container.id);
 
