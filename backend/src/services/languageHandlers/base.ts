@@ -77,7 +77,7 @@ export abstract class BaseHandler {
       
       console.log('  → [BASE] Container finished with exit code:', result);
 
-      // Get output using logs() after container finishes (simple and reliable!)
+      // Get output using logs() after container finishes
       let output = '';
       if (captureOutput) {
         console.log('  → [BASE] Fetching container logs...');
@@ -90,8 +90,30 @@ export abstract class BaseHandler {
           
           console.log('  → [BASE] Log buffer received, length:', logBuffer.length);
           
-          // Simply convert buffer to string - Docker returns it as UTF-8
-          output = logBuffer.toString('utf8').trim();
+          // Docker multiplexes stdout/stderr with 8-byte headers
+          // Format: [type:1 byte][padding:3 bytes][size:4 bytes][payload:size bytes]
+          // We need to parse this to extract the actual output
+          let offset = 0;
+          const chunks: string[] = [];
+          
+          while (offset < logBuffer.length) {
+            // Need at least 8 bytes for header
+            if (offset + 8 > logBuffer.length) break;
+            
+            // Read payload size (4 bytes, big-endian, starting at offset+4)
+            const payloadSize = logBuffer.readUInt32BE(offset + 4);
+            
+            // Extract payload (skip 8-byte header)
+            if (offset + 8 + payloadSize <= logBuffer.length) {
+              const payload = logBuffer.slice(offset + 8, offset + 8 + payloadSize);
+              chunks.push(payload.toString('utf8'));
+            }
+            
+            // Move to next frame
+            offset += 8 + payloadSize;
+          }
+          
+          output = chunks.join('').trim();
           
           console.log('  → [BASE] Captured output length:', output.length);
           if (output) {
