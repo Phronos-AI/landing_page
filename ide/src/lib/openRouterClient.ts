@@ -79,7 +79,9 @@ class OpenRouterClient {
       messages: [
         {
           role: "system",
-          content: `You are a test generation expert for ${config.name}. Given a task description, generate comprehensive unit tests using ${config.testFramework}. Return ONLY the test code with proper imports, no explanations or markdown.`,
+          content: `You are a test generation expert for ${config.name}. Given a task description, generate comprehensive unit tests using ${config.testFramework}. 
+
+CRITICAL: Return ONLY raw ${config.name} code. Do NOT wrap in markdown code blocks. Do NOT use \`\`\`python or \`\`\`rust or any other markdown formatting. Start directly with the code.`,
         },
         {
           role: "user",
@@ -97,7 +99,7 @@ class OpenRouterClient {
       messages: [
         {
           role: "system",
-          content: "You are a coding expert. Given a task description and tests, write code that passes all tests. Return ONLY the code, no explanations.",
+          content: "You are a coding expert. Given a task description and tests, write code that passes all tests. \n\nCRITICAL: Return ONLY raw code. Do NOT wrap in markdown code blocks. Do NOT use ```python or ```rust or any markdown formatting. Start directly with the code.",
         },
         {
           role: "user",

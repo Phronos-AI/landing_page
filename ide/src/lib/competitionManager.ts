@@ -69,13 +69,18 @@ export const competitionManager = {
         const aiStartTime = Date.now();
         
         // Build the prompt based on whether this is an optimization run
-        let systemPrompt = `You are a ${config.name} coding expert. Write code that passes all the given tests. Return ONLY the code implementation with proper imports, no explanations or markdown.`;
+        let systemPrompt = `You are a ${config.name} coding expert. Write code that passes all the given tests. 
+
+CRITICAL: Return ONLY raw ${config.name} code. Do NOT wrap in markdown code blocks. Do NOT use \`\`\`python or \`\`\`rust or any markdown formatting. Start directly with the code.`;
+        
         let userPrompt = `Task Description:\n${description}\n\nTests to Pass (${config.testFramework}):\n${tests}\n\nProvide the ${config.name} solution code:`;
         
         const isOptimization = options?.optimizeLatency && options?.previousSolution;
         
         if (isOptimization) {
-          systemPrompt = `You are a ${config.name} coding expert specializing in code optimization. You will be given a working solution and your goal is to optimize it for lower latency (faster execution time). The optimized code MUST still pass all tests. Return ONLY the optimized code implementation with proper imports, no explanations or markdown.`;
+          systemPrompt = `You are a ${config.name} coding expert specializing in code optimization. You will be given a working solution and your goal is to optimize it for lower latency (faster execution time). The optimized code MUST still pass all tests. 
+
+CRITICAL: Return ONLY raw ${config.name} code. Do NOT wrap in markdown code blocks. Do NOT use \`\`\`python or \`\`\`rust or any markdown formatting. Start directly with the code.`;
           
           userPrompt = `Task Description:\n${description}\n\nTests to Pass (${config.testFramework}):\n${tests}\n\nPrevious Working Solution:\n${options.previousSolution}\n\nOptimize this ${config.name} solution for lower latency (faster execution time). Ensure all tests still pass:`;
         }

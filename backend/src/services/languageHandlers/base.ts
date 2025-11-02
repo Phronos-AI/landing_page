@@ -157,13 +157,19 @@ export abstract class BaseHandler {
    * Strip markdown code fences from code
    */
   protected stripMarkdown(code: string): string {
-    // Remove opening fence: ```python, ```javascript, etc.
-    let cleaned = code.replace(/^```[\w]*\s*\n/m, '');
-    // Remove closing fence: ```
-    cleaned = cleaned.replace(/\n```\s*$/m, '');
-    // Also handle if there are multiple fences (shouldn't happen but be safe)
-    cleaned = cleaned.replace(/```[\w]*\s*\n/g, '');
+    let cleaned = code.trim();
+    
+    // Remove opening fence at start: ```python, ```rust, etc.
+    // Match: optional whitespace, ```, optional language, optional whitespace/newlines
+    cleaned = cleaned.replace(/^\s*```[\w]*\s*/m, '');
+    
+    // Remove closing fence at end: ```
+    cleaned = cleaned.replace(/\s*```\s*$/m, '');
+    
+    // Handle any remaining fences in the middle (shouldn't happen but be safe)
+    cleaned = cleaned.replace(/```[\w]*\n/g, '');
     cleaned = cleaned.replace(/\n```/g, '');
+    
     return cleaned.trim();
   }
 
