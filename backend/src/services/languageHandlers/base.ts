@@ -86,6 +86,17 @@ export abstract class BaseHandler {
         
         console.log('  → [DEBUG] DemuxStream configured, chunks will be captured');
         
+        // DIAGNOSTIC: Add direct listeners to see if stream emits data events
+        stream.on('data', (chunk: any) => {
+          console.log(`  → [DEBUG] RAW stream data event: ${chunk.length} bytes`);
+        });
+        stream.on('end', () => {
+          console.log(`  → [DEBUG] RAW stream END event`);
+        });
+        stream.on('error', (err: any) => {
+          console.log(`  → [DEBUG] RAW stream ERROR:`, err);
+        });
+        
         // Ensure stream is active - might need to resume or pipe
         if (stream.resume && typeof stream.resume === 'function') {
           stream.resume();
