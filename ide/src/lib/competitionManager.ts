@@ -85,23 +85,12 @@ CRITICAL: Return ONLY raw ${config.name} code. Do NOT wrap in markdown code bloc
           userPrompt = `Task Description:\n${description}\n\nTests to Pass (${config.testFramework}):\n${tests}\n\nPrevious Working Solution:\n${options.previousSolution}\n\nOptimize this ${config.name} solution for lower latency (faster execution time). Ensure all tests still pass:`;
         }
         
-        const response = await openRouterClient.complete({
-          model: modelId,
-          messages: [
-            {
-              role: "system",
-              content: systemPrompt,
-            },
-            {
-              role: "user",
-              content: userPrompt,
-            },
-          ],
-          temperature: 0.7,
-          max_tokens: 2000,
-        });
-
-        const solution = response.choices[0].message.content;
+        // Generate solution via backend (secure API key handling)
+        const solution = await openRouterClient.generateSolution(
+          `${systemPrompt}\n\n${userPrompt}`,
+          tests,
+          modelId
+        );
         const aiResponseTime = Date.now() - aiStartTime;
 
         // Execute and measure solution with real code execution (100 runs for mean)

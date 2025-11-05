@@ -1,0 +1,120 @@
+// Secure server-side OpenRouter client
+// API key is never exposed to frontend
+export interface Message {
+  role: "system" | "user" | "assistant";
+  content: string;
+}
+
+export interface CompletionRequest {
+  model: string;
+  messages: Message[];
+  temperature?: number;
+  max_tokens?: number;
+}
+
+export interface CompletionResponse {
+  choices: Array<{
+    message: {
+      role: string;
+      content: string;
+    };
+  }>;
+}
+
+class OpenRouterService {
+  private baseUrl = "https://openrouter.ai/api/v1/chat/completions";
+
+  private getApiKey(): string {
+    const apiKey = process.env.OPENROUTER_API_KEY;
+    
+    if (!apiKey) {
+      throw new Error("OPENROUTER_API_KEY not set in environment variables");
+    }
+    
+    return apiKey;
+  }
+
+  async complete(request: CompletionRequest): Promise<CompletionResponse> {
+    const apiKey = this.getApiKey();
+
+    const response = await fetch(this.baseUrl, {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+        "HTTP-Referer": "https://phronos.ai",
+        "X-Title": "Phronos IDE",
+      },
+      body: JSON.stringify({
+        ...request,
+        temperature: request.temperature ?? 0.7,
+        max_tokens: request.max_tokens ?? 2000,
+      }),
+    });
+
+    if (!response.ok) {
+      const error = await response.text();
+      throw new Error(`OpenRouter API error: ${response.status} - ${error}`);
+    }
+
+    return response.json() as Promise<CompletionResponse>;
+  }
+
+  async generateTests(description: string, language: string, testFramework: string, languageName: string): Promise<string> {
+    const response = await this.complete({
+      model: "anthropic/claude-sonnet-4.5",
+      messages: [
+        {
+          role: "system",
+          content: `You are a test generation expert for ${languageName}. Given a task description, generate comprehensive unit tests using ${testFramework}.
+
+CRITICAL RULES:
+1. Return ONLY test code - do NOT include the actual solution implementation
+2. Tests must import from a separate file (e.g., "from solution import function_name" for Python)
+3. Do NOT wrap in markdown code blocks - no \`\`\`python or \`\`\`${language} tags
+4. Start directly with test code (imports and test functions only)
+5. Include comprehensive test cases covering edge cases, normal cases, and error conditions
+6. Use proper ${testFramework} syntax and assertions
+7. Focus on common use cases and reasonable edge cases
+8. Avoid overly complex test cases (like Unicode combining characters or escape sequences)`,
+        },
+        {
+          role: "user",
+          content: `Task description:
+${description}
+
+Generate ${testFramework} tests that:
+- Import the solution from an external module (not defined in tests)
+- Test all requirements thoroughly
+- Cover edge cases and error conditions
+- Use clear, descriptive test names
+
+Return ONLY the test code, starting with imports.`,
+        },
+      ],
+    });
+
+    return response.choices[0].message.content;
+  }
+
+  async generateSolution(description: string, tests: string, modelId: string): Promise<string> {
+    const response = await this.complete({
+      model: modelId,
+      messages: [
+        {
+          role: "system",
+          content: "You are a coding expert. Given a task description and tests, write code that passes all tests. \n\nCRITICAL: Return ONLY raw code. Do NOT wrap in markdown code blocks. Do NOT use ```python or ```rust or any markdown formatting. Start directly with the code.",
+        },
+        {
+          role: "user",
+          content: `Task:\n${description}\n\nTests:\n${tests}\n\nWrite the solution:`,
+        },
+      ],
+    });
+
+    return response.choices[0].message.content;
+  }
+}
+
+export const openRouterService = new OpenRouterService();
+

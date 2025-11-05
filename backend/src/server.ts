@@ -2,6 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import compression from 'compression';
 import { executeRouter } from './routes/execute.js';
+import { aiRouter } from './routes/ai.js';
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -23,6 +24,7 @@ app.use((req, res, next) => {
 
 // Routes
 app.use('/api/execute', executeRouter);
+app.use('/api/ai', aiRouter);
 
 // Health check
 app.get('/health', (req, res) => {

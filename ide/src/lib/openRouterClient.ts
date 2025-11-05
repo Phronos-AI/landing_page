@@ -29,41 +29,26 @@ export const AVAILABLE_MODELS = [
 ];
 
 class OpenRouterClient {
-  private baseUrl = "https://openrouter.ai/api/v1/chat/completions";
+  private backendUrl = import.meta.env.VITE_BACKEND_URL || "http://localhost:3001";
 
-  getApiKey(): string | null {
-    return import.meta.env.VITE_OPENROUTER_API_KEY || null;
-  }
-
+  // No longer exposes API key - backend handles authentication
   hasApiKey(): boolean {
-    return !!this.getApiKey();
+    return true; // Backend manages the key
   }
 
+  // General purpose completion (proxied through backend)
   async complete(request: CompletionRequest): Promise<CompletionResponse> {
-    const apiKey = this.getApiKey();
-    
-    if (!apiKey) {
-      throw new Error("OpenRouter API key not set. Please configure it first.");
-    }
-
-    const response = await fetch(this.baseUrl, {
+    const response = await fetch(`${this.backendUrl}/api/ai/complete`, {
       method: "POST",
       headers: {
-        "Authorization": `Bearer ${apiKey}`,
         "Content-Type": "application/json",
-        "HTTP-Referer": window.location.origin,
-        "X-Title": "Phronos IDE",
       },
-      body: JSON.stringify({
-        ...request,
-        temperature: request.temperature ?? 0.7,
-        max_tokens: request.max_tokens ?? 2000,
-      }),
+      body: JSON.stringify(request),
     });
 
     if (!response.ok) {
       const error = await response.text();
-      throw new Error(`OpenRouter API error: ${response.status} - ${error}`);
+      throw new Error(`AI completion failed: ${response.status} - ${error}`);
     }
 
     return response.json();
@@ -74,56 +59,48 @@ class OpenRouterClient {
     const { getLanguageConfig } = await import("./languageConfig");
     const config = getLanguageConfig(language);
     
-    const response = await this.complete({
-      model: "anthropic/claude-sonnet-4.5",
-      messages: [
-        {
-          role: "system",
-          content: `You are a test generation expert for ${config.name}. Given a task description, generate comprehensive unit tests using ${config.testFramework}.
-
-CRITICAL RULES:
-1. Return ONLY test code - do NOT include the actual solution implementation
-2. Tests must import from a separate file (e.g., "from solution import function_name" for Python)
-3. Do NOT wrap in markdown code blocks - no \`\`\`python or \`\`\`${language} tags
-4. Start directly with test code (imports and test functions only)
-5. Include comprehensive test cases covering edge cases, normal cases, and error conditions
-6. Use proper ${config.testFramework} syntax and assertions`,
-        },
-        {
-          role: "user",
-          content: `Task description:
-${description}
-
-Generate ${config.testFramework} tests that:
-- Import the solution from an external module (not defined in tests)
-- Test all requirements thoroughly
-- Cover edge cases and error conditions
-- Use clear, descriptive test names
-
-Return ONLY the test code, starting with imports.`,
-        },
-      ],
+    const response = await fetch(`${this.backendUrl}/api/ai/generate-tests`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        description,
+        language,
+        testFramework: config.testFramework,
+        languageName: config.name,
+      }),
     });
 
-    return response.choices[0].message.content;
+    if (!response.ok) {
+      const error = await response.text();
+      throw new Error(`Failed to generate tests: ${response.status} - ${error}`);
+    }
+
+    const data = await response.json();
+    return data.tests;
   }
 
-  async generateSolution(description: string, tests: string): Promise<string> {
-    const response = await this.complete({
-      model: "anthropic/claude-sonnet-4.5",
-      messages: [
-        {
-          role: "system",
-          content: "You are a coding expert. Given a task description and tests, write code that passes all tests. \n\nCRITICAL: Return ONLY raw code. Do NOT wrap in markdown code blocks. Do NOT use ```python or ```rust or any markdown formatting. Start directly with the code.",
-        },
-        {
-          role: "user",
-          content: `Task:\n${description}\n\nTests:\n${tests}\n\nWrite the solution:`,
-        },
-      ],
+  async generateSolution(description: string, tests: string, modelId: string = "anthropic/claude-sonnet-4.5"): Promise<string> {
+    const response = await fetch(`${this.backendUrl}/api/ai/generate-solution`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        description,
+        tests,
+        modelId,
+      }),
     });
 
-    return response.choices[0].message.content;
+    if (!response.ok) {
+      const error = await response.text();
+      throw new Error(`Failed to generate solution: ${response.status} - ${error}`);
+    }
+
+    const data = await response.json();
+    return data.solution;
   }
 }
 
