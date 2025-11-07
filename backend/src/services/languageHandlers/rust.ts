@@ -155,6 +155,7 @@ ${fixedTests}
 mod perf_benchmark {
     use super::*;
     use std::time::Instant;
+    use serde_json::json;
     
     #[test]
     #[ignore]
@@ -173,13 +174,9 @@ mod perf_benchmark {
             times.push(duration.as_secs_f64() * 1000.0);
         }
         
-        // Print results with clear markers
-        eprint!("BENCH_START:");
-        for (i, t) in times.iter().enumerate() {
-            if i > 0 { eprint!(","); }
-            eprint!("{}", t);
-        }
-        eprintln!(":BENCH_END");
+        // Print results in a single JSON line to stdout for reliable parsing
+        let payload = json!({ "times": times });
+        println!("BENCHMARK_RESULTS_JSON:{}", serde_json::to_string(&payload).unwrap());
     }
 }
 `;
@@ -197,14 +194,23 @@ mod perf_benchmark {
         return { meanExecutionTime: 0, standardDeviation: 0, executionTimes: [] };
       }
 
-      // Parse results
-      const resultsMatch = output.match(/BENCH_START:([\d.,]+):BENCH_END/);
-      if (!resultsMatch) {
+      // Parse results from JSON line
+      let times: number[] | undefined;
+      const jsonMatch = output.match(/BENCHMARK_RESULTS_JSON:(\{[\s\S]*?\})/);
+      if (jsonMatch) {
+        try {
+          const parsed = JSON.parse(jsonMatch[1]);
+          if (parsed && Array.isArray(parsed.times)) {
+            times = parsed.times.map((t: any) => Number(t));
+          }
+        } catch {
+          // fallthrough to skip
+        }
+      }
+      if (!times) {
         console.log(`  → Could not parse benchmark results, skipping performance measurement`);
         return { meanExecutionTime: 0, standardDeviation: 0, executionTimes: [] };
       }
-
-      const times = resultsMatch[1].split(',').map(t => parseFloat(t));
       const stats = this.calculateStatistics(times);
       
       return {
