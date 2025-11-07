@@ -89,7 +89,8 @@ export const competitionManager = {
         const passedByCounts =
           executionResult.totalTests > 0 &&
           executionResult.testsPassed === executionResult.totalTests;
-        result.status = passedByCounts ? "passed" : "failed";
+        const passed = passedByCounts || executionResult.passed;
+        result.status = passed ? "passed" : "failed";
         result.meanExecutionTime = executionResult.meanExecutionTime;
         result.aiResponseTime = aiResponseTime;
         result.testsPassed = executionResult.testsPassed;
