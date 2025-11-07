@@ -68,29 +68,14 @@ export const competitionManager = {
       try {
         const aiStartTime = Date.now();
         
-        // Build the prompt based on whether this is an optimization run
-        let systemPrompt = `You are a ${config.name} coding expert. Write code that passes all the given tests. 
-
-CRITICAL: Return ONLY raw ${config.name} code. Do NOT wrap in markdown code blocks. Do NOT use \`\`\`python or \`\`\`rust or any markdown formatting. Start directly with the code.`;
-        
-        let userPrompt = `Task Description:\n${description}\n\nTests to Pass (${config.testFramework}):\n${tests}\n\nProvide the ${config.name} solution code:`;
-        
+        // Build the input for backend: keep tests separate; send clean description (optionally with previous solution)
         const isOptimization = options?.optimizeLatency && options?.previousSolution;
+        const finalDescription = isOptimization
+          ? `${description}\n\nPREVIOUS_SOLUTION:\n${options.previousSolution}`
+          : description;
         
-        if (isOptimization) {
-          systemPrompt = `You are a ${config.name} coding expert specializing in code optimization. You will be given a working solution and your goal is to optimize it for lower latency (faster execution time). The optimized code MUST still pass all tests. 
-
-CRITICAL: Return ONLY raw ${config.name} code. Do NOT wrap in markdown code blocks. Do NOT use \`\`\`python or \`\`\`rust or any markdown formatting. Start directly with the code.`;
-          
-          userPrompt = `Task Description:\n${description}\n\nTests to Pass (${config.testFramework}):\n${tests}\n\nPrevious Working Solution:\n${options.previousSolution}\n\nOptimize this ${config.name} solution for lower latency (faster execution time). Ensure all tests still pass:`;
-        }
-        
-        // Generate solution via backend (secure API key handling)
-        const solution = await openRouterClient.generateSolution(
-          `${systemPrompt}\n\n${userPrompt}`,
-          tests,
-          modelId
-        );
+        // Generate solution via backend (secure API key handling). Backend formats prompts and appends tests once.
+        const solution = await openRouterClient.generateSolution(finalDescription, tests, modelId);
         const aiResponseTime = Date.now() - aiStartTime;
 
         // Execute and measure solution with real code execution (100 runs for mean)
