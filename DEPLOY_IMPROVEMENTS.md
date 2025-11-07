@@ -187,3 +187,8 @@ Deploy and test tomorrow! 🚀
 - Models should now pass significantly more problems without dependency errors
 - Better error logging to diagnose issues faster
 
+## Latest Fix (Rust Import Issues):
+- Fixed test generation to use `use crate::{...}` instead of `use solution::{...}` for Rust
+- Added explicit Rust crate restrictions to prevent AI from using unavailable dependencies
+- AI now knows to avoid: lazy_static, once_cell, tokio, reqwest, chrono, uuid, anyhow, thiserror
+
