@@ -86,7 +86,10 @@ export const competitionManager = {
         );
 
         result.solution = solution;
-        result.status = executionResult.passed ? "passed" : "failed";
+        const passedByCounts =
+          executionResult.totalTests > 0 &&
+          executionResult.testsPassed === executionResult.totalTests;
+        result.status = passedByCounts ? "passed" : "failed";
         result.meanExecutionTime = executionResult.meanExecutionTime;
         result.aiResponseTime = aiResponseTime;
         result.testsPassed = executionResult.testsPassed;
@@ -94,7 +97,7 @@ export const competitionManager = {
         result.error = executionResult.passed ? undefined : executionResult.error;
 
         // Update winner if this is faster (among passing solutions)
-        if (executionResult.passed) {
+        if (passedByCounts) {
           if (!winner || (executionResult.meanExecutionTime < (winner.meanExecutionTime || Infinity))) {
             winner = result;
           }

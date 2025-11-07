@@ -180,8 +180,11 @@ export function Terminal({ onCloseAllTabs, projectName }: TerminalProps) {
             : improvement < 0 
             ? `${Math.abs(improvement).toFixed(1)}% slower`
             : "no change";
-          const status = result.status === "passed" ? "PASSED" : 
-                        result.status === "failed" ? "FAILED" : "ERROR";
+          const passedByCounts =
+            (result.totalTests ?? 0) > 0 &&
+            result.testsPassed === result.totalTests;
+          const status = passedByCounts ? "PASSED" :
+                         (result.status === "error" ? "ERROR" : "FAILED");
           
           terminal.addOutput(
             `${result.modelName.padEnd(25)} | ${testsInfo.padEnd(10)} | ${timeInfo.padEnd(12)} | ${improvementText.padEnd(15)} | ${status}`
@@ -321,8 +324,11 @@ export function Terminal({ onCloseAllTabs, projectName }: TerminalProps) {
             ? `${result.testsPassed}/${result.totalTests}`
             : "N/A";
           const timeInfo = formatExecutionTime(result.meanExecutionTime);
-          const status = result.status === "passed" ? "PASSED" : 
-                        result.status === "failed" ? "FAILED" : "ERROR";
+          const passedByCounts =
+            (result.totalTests ?? 0) > 0 &&
+            result.testsPassed === result.totalTests;
+          const status = passedByCounts ? "PASSED" :
+                         (result.status === "error" ? "ERROR" : "FAILED");
           
           terminal.addOutput(
             `${result.modelName.padEnd(25)} | ${testsInfo.padEnd(10)} | ${timeInfo.padEnd(12)} | ${status}`

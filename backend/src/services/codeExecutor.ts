@@ -98,7 +98,12 @@ export class CodeExecutor {
       console.log(`  → Measuring performance (${runs} runs)...`);
       const measurementResult = await handler.measurePerformance(solution, workDir, runs);
       
-      console.log(`  ✓ Mean execution time: ${measurementResult.meanExecutionTime.toFixed(2)}ms`);
+      const meanMs = measurementResult.meanExecutionTime;
+      const display =
+        meanMs < 1e-3 ? `${(meanMs * 1e6).toFixed(2)}ns` :
+        meanMs < 1     ? `${(meanMs * 1e3).toFixed(2)}µs` :
+                         `${meanMs.toFixed(2)}ms`;
+      console.log(`  ✓ Mean execution time: ${display}`);
       
       return {
         passed: true,

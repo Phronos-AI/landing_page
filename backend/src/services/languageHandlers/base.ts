@@ -229,10 +229,7 @@ export abstract class BaseHandler {
     const variance = times.reduce((acc, time) => acc + Math.pow(time - mean, 2), 0) / times.length;
     const stdDev = Math.sqrt(variance);
     
-    return {
-      mean: Math.round(mean * 100000) / 100000, // Round to 5 decimal places (0.00001ms = 0.01μs precision)
-      stdDev: Math.round(stdDev * 100000) / 100000,
-    };
+    return { mean, stdDev };
   }
 }
 

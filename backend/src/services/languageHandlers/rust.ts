@@ -156,13 +156,14 @@ mod perf_benchmark {
     use super::*;
     use std::time::Instant;
     use serde_json::json;
+    use std::hint::black_box;
     
     #[test]
     #[ignore]
     fn measure_perf() {
         // Warmup
         for _ in 0..10 {
-            let _ = ${benchmarkCall};
+            let _ = black_box(${benchmarkCall});
         }
 
         // Calibrate repeats to ~20ms per batch (cap at 1_000_000)
@@ -170,7 +171,7 @@ mod perf_benchmark {
         loop {
             let start = Instant::now();
             for _ in 0..repeats {
-                let _ = ${benchmarkCall};
+                let _ = black_box(${benchmarkCall});
             }
             let elapsed = start.elapsed();
             if elapsed.as_millis() >= 20 || repeats >= 1_000_000 {
@@ -184,7 +185,7 @@ mod perf_benchmark {
         for _ in 0..${runs} {
             let start = Instant::now();
             for _ in 0..repeats {
-                let _ = ${benchmarkCall};
+                let _ = black_box(${benchmarkCall});
             }
             let duration = start.elapsed();
             times.push((duration.as_secs_f64() * 1000.0) / repeats as f64);
