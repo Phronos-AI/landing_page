@@ -88,22 +88,64 @@ ${fixedTests}
       const funcName = funcMatch[1];
       const funcParams = funcMatch[2];
       
-      // Find ANY call to this function in the tests
-      const callPattern = new RegExp(`${funcName}\\s*\\([^)]*\\)`, 'm');
-      const callMatch = testContent.match(callPattern);
-      
-      let benchmarkCall;
-      if (callMatch) {
-        benchmarkCall = callMatch[0];
-      } else {
-        // Generate a default call based on parameters
-        if (funcParams.includes('&str')) {
-          benchmarkCall = `${funcName}("")`;
-        } else if (funcParams.includes('usize') || funcParams.includes('i32')) {
-          benchmarkCall = `${funcName}(0)`;
-        } else {
-          benchmarkCall = `${funcName}()`;
+      // Helper: extract only the tests module body to avoid matching signatures in solution
+      const extractTestsBody = (src: string): string | null => {
+        const modIdx = src.indexOf('mod tests');
+        if (modIdx === -1) return null;
+        const braceIdx = src.indexOf('{', modIdx);
+        if (braceIdx === -1) return null;
+        let depth = 0;
+        for (let i = braceIdx; i < src.length; i++) {
+          const ch = src[i];
+          if (ch === '{') depth++;
+          else if (ch === '}') {
+            depth--;
+            if (depth === 0) {
+              return src.slice(braceIdx + 1, i);
+            }
+          }
         }
+        return null;
+      };
+
+      const testsBody = extractTestsBody(testContent) ?? testContent;
+
+      // Try to extract a call from assert_eq!(func(...), ...)
+      let benchmarkCall: string | undefined;
+      const assertCallRe = new RegExp(`assert_eq!\\s*\\(\\s*${funcName}\\s*\\([^)]*\\)`, 'm');
+      const assertMatch = testsBody.match(assertCallRe);
+      if (assertMatch) {
+        const inner = assertMatch[0];
+        const callOnly = inner.replace(/assert_eq!\s*\(\s*/, '').replace(/,\s*.*$/, '');
+        benchmarkCall = callOnly.trim();
+      }
+
+      // Fallback: any func(...) occurrence inside tests, but exclude signatures (fn ...), types (: or ->)
+      if (!benchmarkCall) {
+        const callPattern = new RegExp(`${funcName}\\s*\\([^)]*\\)`, 'gm');
+        for (const m of testsBody.matchAll(callPattern) as any) {
+          const text = m[0] as string;
+          const idx = (m.index as number) ?? 0;
+          const before = testsBody.slice(Math.max(0, idx - 20), idx);
+          const looksLikeSignature = /\bfn\s*$/.test(before) || text.includes(':') || text.includes('->');
+          if (!looksLikeSignature) {
+            benchmarkCall = text;
+            break;
+          }
+        }
+      }
+
+      // Last resort: synthesize default args from parameter types
+      if (!benchmarkCall) {
+        const params = funcParams.split(',').map(p => p.trim()).filter(Boolean);
+        const argFor = (p: string) => {
+          if (p.includes('&str')) return '""';
+          if (/(^|\\b)(u|i)(8|16|32|64|128|size)(\\b|$)/.test(p)) return '0';
+          if (p.includes('bool')) return 'false';
+          return 'Default::default()';
+        };
+        const args = params.map(argFor).join(', ');
+        benchmarkCall = `${funcName}(${args})`;
       }
       
       // Create benchmark module with unique name to avoid conflicts
