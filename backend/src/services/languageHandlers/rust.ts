@@ -55,94 +55,90 @@ itertools = "0.12"
   }
 
   async measurePerformance(solution: string, workDir: string, runs: number): Promise<MeasurementResult> {
-    // Read test file and extract a representative workload
+    // For Rust, we'll create a simple benchmark that calls a main function
+    // Extract the first public function from solution
     const testFilePath = path.join(workDir, 'src', 'lib.rs');
     const testContent = await fs.readFile(testFilePath, 'utf-8');
     
-    // Extract test functions (look for #[test] or #[cfg(test)])
-    const testMatches = testContent.match(/#\[test\]\s*fn\s+\w+\s*\(\)\s*\{[\s\S]*?\n\}/g);
-    
-    if (!testMatches || testMatches.length === 0) {
-      throw new Error('No test functions found in Rust code');
+    // Find the first public function to benchmark
+    const funcMatch = testContent.match(/pub\s+fn\s+(\w+)\s*\([^)]*\)/);
+    if (!funcMatch) {
+      throw new Error('No public function found to benchmark');
     }
     
-    // Pick middle test
-    const middleIdx = Math.floor(testMatches.length / 2);
-    let testFunc = testMatches[middleIdx];
+    const funcName = funcMatch[1];
     
-    // Extract test body (between { and })
-    const bodyMatch = testFunc.match(/\{([\s\S]*)\}/);
-    if (!bodyMatch) {
-      throw new Error('Could not extract test body');
-    }
+    // Try to extract a simple test call to this function
+    const testCallMatch = testContent.match(new RegExp(`let\\s+\\w+\\s*=\\s*${funcName}\\s*\\([^)]*\\)`, 'g'));
+    let benchmarkCall = testCallMatch ? testCallMatch[0] : `let _ = ${funcName}("")`;
     
-    let workloadCode = bodyMatch[1]
-      .replace(/assert.*?;/g, '') // Remove assertions
-      .trim();
+    // Remove let statement, just keep the function call
+    benchmarkCall = benchmarkCall.replace(/let\s+\w+\s*=\s*/, '');
     
-    // Create a benchmark binary that runs the workload N times
+    // Append benchmark code to lib.rs
     const benchmarkCode = `
-use std::time::Instant;
-use serde_json;
 
-// Include solution module
-mod solution;
-use solution::*;
-
-fn main() {
-    let mut times = Vec::new();
+#[cfg(test)]
+mod benchmark {
+    use super::*;
+    use std::time::Instant;
     
-    // Run the workload ${runs} times and measure each execution
-    for _ in 0..${runs} {
-        let start = Instant::now();
+    #[test]
+    #[ignore] // Ignored by default test runs
+    fn benchmark_performance() {
+        let mut times = Vec::new();
         
-        // Run extracted workload
-        ${workloadCode}
+        // Warmup
+        for _ in 0..10 {
+            ${benchmarkCall};
+        }
         
-        let duration = start.elapsed();
-        times.push(duration.as_secs_f64() * 1000.0); // Convert to milliseconds
+        // Actual benchmark
+        for _ in 0..${runs} {
+            let start = Instant::now();
+            ${benchmarkCall};
+            let duration = start.elapsed();
+            times.push(duration.as_secs_f64() * 1000.0);
+        }
+        
+        // Output results
+        let json = format!("BENCHMARK_RESULTS:{}", 
+            times.iter()
+                .map(|t| t.to_string())
+                .collect::<Vec<_>>()
+                .join(",")
+        );
+        println!("{}", json);
     }
-    
-    // Output as JSON array
-    println!("{}", serde_json::to_string(&times).unwrap());
 }
 `;
 
-    await fs.writeFile(path.join(workDir, 'src', 'main.rs'), benchmarkCode);
+    // Append benchmark to lib.rs
+    await fs.appendFile(testFilePath, benchmarkCode);
 
-    // Build in release mode (optimized)
-    const buildResult = await this.runInContainer(workDir, [
-      'cargo', 'build', '--release'
+    // Run the benchmark test
+    const { exitCode, output } = await this.runInContainer(workDir, [
+      'cargo', 'test', '--release', 'benchmark_performance', '--', '--nocapture', '--ignored'
     ], { timeout: 120000 });
 
-    if (buildResult.exitCode !== 0) {
-      throw new Error(`Build failed: ${buildResult.output}`);
-    }
-
-    // Run the benchmark ONCE - it runs the solution N times internally
-    const { exitCode, output } = await this.runInContainer(workDir, [
-      './target/release/solution'
-    ], { timeout: 60000 });
-
     if (exitCode !== 0) {
-      throw new Error(`Benchmark execution failed: ${output}`);
+      throw new Error(`Benchmark failed: ${output}`);
     }
 
-    try {
-      const times = JSON.parse(output);
-      if (!Array.isArray(times)) {
-        throw new Error('Invalid benchmark output format');
-      }
-
-      const stats = this.calculateStatistics(times);
-      return {
-        meanExecutionTime: stats.mean,
-        standardDeviation: stats.stdDev,
-        executionTimes: times,
-      };
-    } catch (error) {
-      throw new Error(`Failed to parse benchmark results: ${error}`);
+    // Parse results from output
+    const resultsMatch = output.match(/BENCHMARK_RESULTS:([\d.,]+)/);
+    if (!resultsMatch) {
+      throw new Error('Could not find benchmark results in output');
     }
+
+    const times = resultsMatch[1].split(',').map(t => parseFloat(t));
+    const stats = this.calculateStatistics(times);
+    
+    return {
+      meanExecutionTime: stats.mean,
+      standardDeviation: stats.stdDev,
+      executionTimes: times,
+    };
   }
 
   private parseTestOutput(output: string): { passed: number; total: number } {
