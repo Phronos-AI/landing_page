@@ -55,27 +55,38 @@ itertools = "0.12"
   }
 
   async measurePerformance(solution: string, workDir: string, runs: number): Promise<MeasurementResult> {
-    // For Rust, we'll create a simple benchmark that calls a main function
-    // Extract the first public function from solution
+    // For Rust, extract first function call from first test
     const testFilePath = path.join(workDir, 'src', 'lib.rs');
     const testContent = await fs.readFile(testFilePath, 'utf-8');
     
-    // Find the first public function to benchmark
-    const funcMatch = testContent.match(/pub\s+fn\s+(\w+)\s*\([^)]*\)/);
+    // Find first public function
+    const funcMatch = testContent.match(/pub\s+fn\s+(\w+)\s*\(([^)]*)\)/);
     if (!funcMatch) {
       throw new Error('No public function found to benchmark');
     }
     
     const funcName = funcMatch[1];
+    const funcParams = funcMatch[2];
     
-    // Try to extract a simple test call to this function
-    const testCallMatch = testContent.match(new RegExp(`let\\s+\\w+\\s*=\\s*${funcName}\\s*\\([^)]*\\)`, 'g'));
-    let benchmarkCall = testCallMatch ? testCallMatch[0] : `let _ = ${funcName}("")`;
+    // Find ANY call to this function in the tests
+    const callPattern = new RegExp(`${funcName}\\s*\\([^)]*\\)`, 'm');
+    const callMatch = testContent.match(callPattern);
     
-    // Remove let statement, just keep the function call
-    benchmarkCall = benchmarkCall.replace(/let\s+\w+\s*=\s*/, '');
+    let benchmarkCall;
+    if (callMatch) {
+      benchmarkCall = callMatch[0];
+    } else {
+      // Generate a default call based on parameters
+      if (funcParams.includes('&str')) {
+        benchmarkCall = `${funcName}("")`;
+      } else if (funcParams.includes('usize') || funcParams.includes('i32')) {
+        benchmarkCall = `${funcName}(0)`;
+      } else {
+        benchmarkCall = `${funcName}()`;
+      }
+    }
     
-    // Append benchmark code to lib.rs
+    // Create benchmark module
     const benchmarkCode = `
 
 #[cfg(test)]
@@ -84,39 +95,36 @@ mod benchmark {
     use std::time::Instant;
     
     #[test]
-    #[ignore] // Ignored by default test runs
+    #[ignore]
     fn benchmark_performance() {
-        let mut times = Vec::new();
-        
         // Warmup
         for _ in 0..10 {
-            ${benchmarkCall};
+            let _ = ${benchmarkCall};
         }
         
-        // Actual benchmark
+        // Benchmark
+        let mut times = Vec::new();
         for _ in 0..${runs} {
             let start = Instant::now();
-            ${benchmarkCall};
+            let _ = ${benchmarkCall};
             let duration = start.elapsed();
             times.push(duration.as_secs_f64() * 1000.0);
         }
         
-        // Output results
-        let json = format!("BENCHMARK_RESULTS:{}", 
-            times.iter()
-                .map(|t| t.to_string())
-                .collect::<Vec<_>>()
-                .join(",")
-        );
-        println!("{}", json);
+        // Print results with marker
+        eprint!("BENCH_START:");
+        for (i, t) in times.iter().enumerate() {
+            if i > 0 { eprint!(","); }
+            eprint!("{}", t);
+        }
+        eprintln!(":BENCH_END");
     }
 }
 `;
 
-    // Append benchmark to lib.rs
     await fs.appendFile(testFilePath, benchmarkCode);
 
-    // Run the benchmark test
+    // Run benchmark
     const { exitCode, output } = await this.runInContainer(workDir, [
       'cargo', 'test', '--release', 'benchmark_performance', '--', '--nocapture', '--ignored'
     ], { timeout: 120000 });
@@ -125,10 +133,10 @@ mod benchmark {
       throw new Error(`Benchmark failed: ${output}`);
     }
 
-    // Parse results from output
-    const resultsMatch = output.match(/BENCHMARK_RESULTS:([\d.,]+)/);
+    // Parse results
+    const resultsMatch = output.match(/BENCH_START:([\d.,]+):BENCH_END/);
     if (!resultsMatch) {
-      throw new Error('Could not find benchmark results in output');
+      throw new Error(`Could not find benchmark results in output. Output length: ${output.length}`);
     }
 
     const times = resultsMatch[1].split(',').map(t => parseFloat(t));
