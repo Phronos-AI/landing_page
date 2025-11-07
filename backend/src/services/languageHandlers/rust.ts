@@ -19,6 +19,8 @@ export class RustHandler extends BaseHandler {
       return opens > closes ? src + '\n' + '}'.repeat(opens - closes) + '\n' : src;
     };
     const balancedSolution = balanceBraces(solutionWithoutTests);
+    // Auto-fix common iterator typo: `.count` → `.count()` (only when missing parentheses)
+    const fixedSolution = balancedSolution.replace(/\.count\b(?!\s*\()/g, '.count()');
 
     // Create Cargo.toml with essential lightweight dependencies
     // NOTE: Avoiding heavy crates like tokio/reqwest to prevent compilation timeouts
@@ -61,7 +63,7 @@ ${fixedTests}
     }
 
     // Combine solution and tests in lib.rs
-    const libRs = `${balancedSolution}\n\n${fixedTests}`;
+    const libRs = `${fixedSolution}\n\n${fixedTests}`;
     await fs.writeFile(path.join(workDir, 'src', 'lib.rs'), libRs);
 
     // Run tests with longer timeout for first-time dependency compilation
