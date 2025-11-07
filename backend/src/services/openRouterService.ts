@@ -65,13 +65,15 @@ class OpenRouterService {
     const rustSpecific = language === 'rust' ? `
 
 RUST-SPECIFIC RULES:
-- Use "use crate::{function_names};" to import functions (NOT "use solution::")
-- Tests and solution are in the same lib.rs file, so use crate:: prefix
+- DO NOT add "use crate::" or "use solution::" imports for the solution functions
+- Solution code will be in the SAME lib.rs file ABOVE the tests
+- Tests can directly call functions without any imports (they're in the same module)
 - DO NOT use external crates not in dependencies (no lazy_static, no once_cell)
-- Only use: serde, serde_json, sha2, regex, rand, base64, hex, itertools` : '';
+- Only use these crates: serde, serde_json, sha2, regex, rand, base64, hex, itertools
+- Start with #[cfg(test)] and mod tests { ... } block` : '';
 
     const importInstruction = language === 'rust' 
-      ? 'Use "use crate::{...};" to import functions from the solution'
+      ? 'DO NOT import solution functions - they are in the same file, just call them directly'
       : 'Import the solution from an external module (e.g., "from solution import ..." for Python)';
 
     const response = await this.complete({
@@ -85,7 +87,7 @@ CRITICAL RULES:
 1. Return ONLY test code - do NOT include the actual solution implementation
 2. ${importInstruction}
 3. Do NOT wrap in markdown code blocks - no \`\`\`python or \`\`\`${language} tags
-4. Start directly with test code (imports and test functions only)
+4. Start directly with test code
 5. Generate MAXIMUM 10 test cases - focus on quality over quantity
 6. Distribution: 3-4 basic functionality tests, 3-4 edge case tests, 2-3 error handling tests
 7. Each test should be meaningful and test different aspects of the solution
@@ -104,7 +106,7 @@ Generate ${testFramework} tests that:
 - Cover edge cases and error conditions
 - Use clear, descriptive test names
 
-Return ONLY the test code, starting with imports.`,
+Return ONLY the test code.`,
         },
       ],
     });
@@ -115,9 +117,11 @@ Return ONLY the test code, starting with imports.`,
   async generateSolution(description: string, tests: string, modelId: string): Promise<string> {
     // Add language-specific hints by checking tests
     let languageHints = '';
-    if (tests.includes('#[test]') || tests.includes('use crate::')) {
-      languageHints = `\n\nRUST AVAILABLE CRATES: serde, serde_json, sha2, regex, rand, base64, hex, itertools
-DO NOT use: lazy_static, once_cell, chrono, tokio, reqwest, anyhow, thiserror, uuid`;
+    if (tests.includes('#[test]') || tests.includes('#[cfg(test)]')) {
+      languageHints = `\n\nRUST CONSTRAINTS:
+- Available crates: serde, serde_json, sha2, regex, rand, base64, hex, itertools
+- DO NOT use: lazy_static, once_cell, chrono, tokio, reqwest, anyhow, thiserror, uuid
+- Write clean, compilable Rust code with proper syntax (no unclosed braces/delimiters)`;
     }
 
     const response = await this.complete({
