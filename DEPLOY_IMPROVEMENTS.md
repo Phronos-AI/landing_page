@@ -4,18 +4,14 @@
 
 ### 1. Added Dependencies to All Languages
 
-**Rust** - Added 13 common crates:
+**Rust** - Added 8 lightweight crates:
 - serde, serde_json (JSON serialization/parsing)
 - sha2 (cryptographic hashing)
 - regex (regular expressions)
 - rand (random number generation)
-- chrono (date/time handling)
 - base64, hex (encoding)
-- uuid (unique identifiers)
-- anyhow, thiserror (error handling)
-- tokio, reqwest (async runtime & HTTP)
-- itertools, rayon (collections & parallelism)
-- lazy_static, once_cell (lazy initialization)
+- itertools (collections utilities)
+- NOTE: Avoiding heavy crates like tokio/reqwest/chrono to prevent compilation timeouts
 
 **Python** - Added 20+ common packages:
 - numpy, pandas, scipy (data science)
@@ -146,7 +142,7 @@ pm2 logs phronos-backend --lines 10
 - ❌ AI ignores "don't use X" constraints
 
 ### After:
-- ✅ Rust has 13 crates (serde, sha2, tokio, regex, chrono, uuid, etc.)
+- ✅ Rust has 8 lightweight crates (serde, sha2, regex, rand, base64, hex, itertools)
 - ✅ Python has 20+ packages (numpy, pandas, flask, cryptography, etc.)
 - ✅ JavaScript has 15+ packages (lodash, axios, jwt, moment, etc.)
 - ✅ Go has 11 packages (gin, redis, gorm, uuid, crypto, etc.)
@@ -154,6 +150,7 @@ pm2 logs phronos-backend --lines 10
 - ✅ Java has comprehensive built-in library documentation
 - ✅ Maximum 10 quality tests generated
 - ✅ AI reads full description and respects constraints
+- ✅ Better error logging (shows last 3000 chars, not first 1000)
 
 ## Rollback (if needed)
 
@@ -170,8 +167,8 @@ pm2 restart phronos-backend
 ## Summary
 
 All changes are complete and built successfully:
-- ✅ **60+ dependencies** added across 6 languages
-  - Rust: 13 crates
+- ✅ **55+ dependencies** added across 6 languages
+  - Rust: 8 lightweight crates (optimized for fast compilation)
   - Python: 20+ packages
   - JavaScript: 15+ packages
   - Go: 11 packages
@@ -184,7 +181,9 @@ All changes are complete and built successfully:
 
 Deploy and test tomorrow! 🚀
 
-**Total libraries/packages added: 60+**
+**Total libraries/packages added: 55+**
 - This covers most common use cases for algorithms, data structures, cryptography, web, databases, and utilities
+- Rust optimized for fast compilation (avoiding heavy async crates)
 - Models should now pass significantly more problems without dependency errors
+- Better error logging to diagnose issues faster
 
