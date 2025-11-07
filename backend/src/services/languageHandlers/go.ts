@@ -15,10 +15,31 @@ export class GoHandler extends BaseHandler {
     await fs.writeFile(path.join(workDir, 'solution.go'), cleanSolution);
     await fs.writeFile(path.join(workDir, 'solution_test.go'), cleanTests);
 
-    // Initialize go module
+    // Create go.mod with common dependencies
+    const goMod = `module solution
+
+go 1.21
+
+require (
+	github.com/stretchr/testify v1.8.4
+	github.com/google/uuid v1.5.0
+	github.com/gorilla/mux v1.8.1
+	github.com/gin-gonic/gin v1.9.1
+	github.com/go-redis/redis/v8 v8.11.5
+	go.uber.org/zap v1.26.0
+	github.com/spf13/cobra v1.8.0
+	github.com/spf13/viper v1.18.2
+	golang.org/x/crypto v0.17.0
+	gopkg.in/yaml.v3 v3.0.1
+	gorm.io/gorm v1.25.5
+)
+`;
+    await fs.writeFile(path.join(workDir, 'go.mod'), goMod);
+
+    // Download dependencies
     await this.runInContainer(workDir, [
-      'go', 'mod', 'init', 'solution'
-    ], { captureOutput: false });
+      'go', 'mod', 'download'
+    ], { captureOutput: false, timeout: 60000 });
 
     // Run tests
     const { exitCode, output } = await this.runInContainer(workDir, [

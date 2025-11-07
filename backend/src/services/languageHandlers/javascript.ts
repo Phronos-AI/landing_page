@@ -11,12 +11,29 @@ export class JavaScriptHandler extends BaseHandler {
     await fs.writeFile(path.join(workDir, 'solution.js'), solution);
     await fs.writeFile(path.join(workDir, 'solution.test.js'), tests);
 
-    // Create minimal package.json for Jest
+    // Create package.json with Jest and common dependencies
     const packageJson = {
       name: 'test',
       type: 'module',
       scripts: {
         test: 'node --experimental-vm-modules node_modules/jest/bin/jest.js'
+      },
+      dependencies: {
+        lodash: '^4.17.21',
+        axios: '^1.6.0',
+        'crypto-js': '^4.2.0',
+        moment: '^2.30.1',
+        uuid: '^9.0.1',
+        express: '^4.18.2',
+        bcrypt: '^5.1.1',
+        jsonwebtoken: '^9.0.2',
+        ramda: '^0.29.1',
+        underscore: '^1.13.6',
+        'node-fetch': '^3.3.2',
+        dotenv: '^16.3.1',
+        validator: '^13.11.0',
+        chalk: '^5.3.0',
+        dayjs: '^1.11.10'
       }
     };
     await fs.writeFile(
@@ -24,7 +41,7 @@ export class JavaScriptHandler extends BaseHandler {
       JSON.stringify(packageJson, null, 2)
     );
 
-    // Install Jest
+    // Install Jest and dependencies
     await this.runInContainer(workDir, [
       'sh', '-c', 'npm install --silent jest 2>/dev/null'
     ], { captureOutput: false, timeout: 60000 });

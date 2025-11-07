@@ -12,6 +12,12 @@ export class JavaHandler extends BaseHandler {
     await fs.writeFile(path.join(workDir, 'SolutionTest.java'), tests);
 
     // Compile solution
+    // Java has extensive built-in libraries available:
+    // Collections (HashMap, ArrayList, LinkedList, TreeMap, PriorityQueue, etc.)
+    // Streams, Optional, Functional interfaces, Date/Time API
+    // Regex, I/O, Networking, Crypto (javax.crypto, java.security)
+    // Concurrency (ExecutorService, CompletableFuture, Lock, Semaphore)
+    // Gson/Jackson typically available via reflection
     const compileResult = await this.runInContainer(workDir, [
       'javac', 'Solution.java', 'SolutionTest.java'
     ]);

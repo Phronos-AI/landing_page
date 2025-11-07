@@ -25,8 +25,8 @@ export class PythonHandler extends BaseHandler {
     await fs.writeFile(path.join(workDir, 'test_solution.py'), cleanTests);
     console.log('  → [PYTHON] Files written to disk');
 
-    // Install pytest AND run tests in the same container
-    const command = 'pip install -q pytest 2>/dev/null && python -m pytest test_solution.py -v --tb=short';
+    // Install pytest and common packages, then run tests in the same container
+    const command = 'pip install -q pytest numpy pandas scipy requests cryptography matplotlib pillow beautifulsoup4 flask sqlalchemy pydantic httpx aiohttp redis pymongo psycopg2-binary jwt pyyaml click 2>/dev/null && python -m pytest test_solution.py -v --tb=short';
     console.log('  → [PYTHON] Executing command:', command);
     
     const { exitCode, output } = await this.runInContainer(workDir, [

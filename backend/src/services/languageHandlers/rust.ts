@@ -11,7 +11,7 @@ export class RustHandler extends BaseHandler {
     const cleanSolution = this.stripMarkdown(solution);
     const cleanTests = this.stripMarkdown(tests);
     
-    // Create Cargo.toml
+    // Create Cargo.toml with common dependencies
     const cargoToml = `
 [package]
 name = "solution"
@@ -19,6 +19,23 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+sha2 = "0.10"
+regex = "1.10"
+rand = "0.8"
+chrono = "0.4"
+base64 = "0.21"
+hex = "0.4"
+uuid = { version = "1.6", features = ["v4"] }
+anyhow = "1.0"
+thiserror = "1.0"
+tokio = { version = "1.35", features = ["full"] }
+reqwest = { version = "0.11", features = ["json"] }
+itertools = "0.12"
+rayon = "1.8"
+lazy_static = "1.4"
+once_cell = "1.19"
 `;
     await fs.writeFile(path.join(workDir, 'Cargo.toml'), cargoToml.trim());
 

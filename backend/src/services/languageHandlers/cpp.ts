@@ -11,10 +11,13 @@ export class CppHandler extends BaseHandler {
     await fs.writeFile(path.join(workDir, 'solution.cpp'), solution);
     await fs.writeFile(path.join(workDir, 'test.cpp'), tests);
 
-    // Compile with tests
+    // Compile with tests and common libraries
+    // Available standard headers: <algorithm>, <vector>, <map>, <unordered_map>, <set>, 
+    // <queue>, <stack>, <string>, <iostream>, <fstream>, <sstream>, <cmath>, <cstring>,
+    // <regex>, <chrono>, <thread>, <mutex>, <future>, <numeric>, <random>, <bitset>
     const compileResult = await this.runInContainer(workDir, [
       'sh', '-c', 
-      'g++ -std=c++17 -o test_solution test.cpp solution.cpp 2>&1'
+      'g++ -std=c++17 -pthread -lm -o test_solution test.cpp solution.cpp 2>&1'
     ]);
 
     if (compileResult.exitCode !== 0) {
@@ -105,10 +108,10 @@ int main() {
     
     await fs.writeFile(path.join(workDir, 'benchmark.cpp'), benchmarkCode);
     
-    // Compile benchmark in optimized mode
+    // Compile benchmark in optimized mode with common libraries
     const compileResult = await this.runInContainer(workDir, [
       'sh', '-c',
-      'g++ -std=c++17 -O3 -o benchmark benchmark.cpp 2>&1'
+      'g++ -std=c++17 -O3 -pthread -lm -o benchmark benchmark.cpp 2>&1'
     ]);
 
     if (compileResult.exitCode !== 0) {
