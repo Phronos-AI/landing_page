@@ -10,6 +10,7 @@ export class RustHandler extends BaseHandler {
     // Strip markdown code fences
     const cleanSolution = this.stripMarkdown(solution);
     const cleanTests = this.stripMarkdown(tests);
+    const solutionWithoutTests = this.removeTestsModules(cleanSolution);
     
     // Create Cargo.toml with essential lightweight dependencies
     // NOTE: Avoiding heavy crates like tokio/reqwest to prevent compilation timeouts
@@ -52,7 +53,7 @@ ${fixedTests}
     }
 
     // Combine solution and tests in lib.rs
-    const libRs = `${cleanSolution}\n\n${fixedTests}`;
+    const libRs = `${solutionWithoutTests}\n\n${fixedTests}`;
     await fs.writeFile(path.join(workDir, 'src', 'lib.rs'), libRs);
 
     // Run tests with longer timeout for first-time dependency compilation
@@ -189,6 +190,57 @@ mod perf_benchmark {
     // Alternative format: count "test ... ok"
     const passedTests = (output.match(/test \w+ \.\.\. ok/g) || []).length;
     return { passed: passedTests, total: passedTests || 1 };
+  }
+
+  /**
+   * Remove any #[cfg(test)] mod tests { ... } blocks from a Rust source string.
+   * This prevents duplicate test modules when we append tests ourselves.
+   */
+  private removeTestsModules(content: string): string {
+    let code = content;
+    const findNextTestsModule = (startIdx: number) => {
+      // Prefer to start from #[cfg(test)] if present just before mod tests
+      const cfgIdx = code.indexOf('#[cfg(test)]', startIdx);
+      const modIdx = code.indexOf('mod tests', startIdx);
+      if (modIdx === -1) return null;
+      let start = modIdx;
+      if (cfgIdx !== -1 && cfgIdx < modIdx) {
+        // Ensure there's no other code between cfg and mod
+        const between = code.slice(cfgIdx + '#[cfg(test)]'.length, modIdx);
+        if (!/\S/.test(between)) {
+          start = cfgIdx;
+        }
+      }
+      // Find the opening brace after "mod tests"
+      const braceIdx = code.indexOf('{', modIdx);
+      if (braceIdx === -1) {
+        // No brace - treat the "mod tests" token as removable line
+        return { start, end: modIdx + 'mod tests'.length };
+      }
+      // Walk to matching closing brace
+      let depth = 0;
+      for (let i = braceIdx; i < code.length; i++) {
+        const ch = code[i];
+        if (ch === '{') depth++;
+        else if (ch === '}') {
+          depth--;
+          if (depth === 0) {
+            return { start, end: i + 1 };
+          }
+        }
+      }
+      // If unmatched, remove until end of file to avoid partial module
+      return { start, end: code.length };
+    };
+    // Remove all test modules
+    let pos = 0;
+    while (true) {
+      const span = findNextTestsModule(pos);
+      if (!span) break;
+      code = code.slice(0, span.start) + code.slice(span.end);
+      pos = span.start;
+    }
+    return code.trim();
   }
 }
 
