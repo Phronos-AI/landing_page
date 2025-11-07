@@ -12,6 +12,14 @@ export class RustHandler extends BaseHandler {
     const cleanTests = this.stripMarkdown(tests);
     const solutionWithoutTests = this.removeTestsModules(cleanSolution);
     
+    // Balance braces in solution to auto-heal common "unclosed delimiter" issues
+    const balanceBraces = (src: string) => {
+      const opens = (src.match(/\{/g) || []).length;
+      const closes = (src.match(/\}/g) || []).length;
+      return opens > closes ? src + '\n' + '}'.repeat(opens - closes) + '\n' : src;
+    };
+    const balancedSolution = balanceBraces(solutionWithoutTests);
+
     // Create Cargo.toml with essential lightweight dependencies
     // NOTE: Avoiding heavy crates like tokio/reqwest to prevent compilation timeouts
     const cargoToml = `
@@ -53,7 +61,7 @@ ${fixedTests}
     }
 
     // Combine solution and tests in lib.rs
-    const libRs = `${solutionWithoutTests}\n\n${fixedTests}`;
+    const libRs = `${balancedSolution}\n\n${fixedTests}`;
     await fs.writeFile(path.join(workDir, 'src', 'lib.rs'), libRs);
 
     // Run tests with longer timeout for first-time dependency compilation
