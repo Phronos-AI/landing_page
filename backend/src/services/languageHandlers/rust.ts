@@ -11,7 +11,8 @@ export class RustHandler extends BaseHandler {
     const cleanSolution = this.stripMarkdown(solution);
     const cleanTests = this.stripMarkdown(tests);
     
-    // Create Cargo.toml with common dependencies
+    // Create Cargo.toml with essential lightweight dependencies
+    // NOTE: Avoiding heavy crates like tokio/reqwest to prevent compilation timeouts
     const cargoToml = `
 [package]
 name = "solution"
@@ -24,18 +25,9 @@ serde_json = "1.0"
 sha2 = "0.10"
 regex = "1.10"
 rand = "0.8"
-chrono = "0.4"
 base64 = "0.21"
 hex = "0.4"
-uuid = { version = "1.6", features = ["v4"] }
-anyhow = "1.0"
-thiserror = "1.0"
-tokio = { version = "1.35", features = ["full"] }
-reqwest = { version = "0.11", features = ["json"] }
 itertools = "0.12"
-rayon = "1.8"
-lazy_static = "1.4"
-once_cell = "1.19"
 `;
     await fs.writeFile(path.join(workDir, 'Cargo.toml'), cargoToml.trim());
 
@@ -46,10 +38,10 @@ once_cell = "1.19"
     const libRs = `${cleanSolution}\n\n${cleanTests}`;
     await fs.writeFile(path.join(workDir, 'src', 'lib.rs'), libRs);
 
-    // Run tests
+    // Run tests with longer timeout for first-time dependency compilation
     const { exitCode, output } = await this.runInContainer(workDir, [
       'cargo', 'test', '--', '--nocapture'
-    ], { timeout: 120000 }); // Rust compilation is slow
+    ], { timeout: 180000 }); // 3 minutes for dependency download + compilation
 
     const testResults = this.parseTestOutput(output);
 

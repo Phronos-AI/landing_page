@@ -66,12 +66,19 @@ export class CodeExecutor {
       console.log(`  → Test result: ${validationResult.passed ? 'PASSED' : 'FAILED'}`);
       console.log(`  → Tests: ${validationResult.testsPassed}/${validationResult.totalTests}`);
       if (validationResult.error) {
-        console.log(`  → Error output (first 1000 chars):`);
-        console.log(validationResult.error.substring(0, 1000));
+        console.log(`  → Error output (last 3000 chars):`);
+        // Show last 3000 chars to skip dependency download logs and see actual errors
+        const errorTail = validationResult.error.length > 3000 
+          ? validationResult.error.substring(validationResult.error.length - 3000) 
+          : validationResult.error;
+        console.log(errorTail);
       }
       if (validationResult.output) {
-        console.log(`  → Full output (first 1000 chars):`);
-        console.log(validationResult.output.substring(0, 1000));
+        console.log(`  → Full output (last 3000 chars):`);
+        const outputTail = validationResult.output.length > 3000 
+          ? validationResult.output.substring(validationResult.output.length - 3000) 
+          : validationResult.output;
+        console.log(outputTail);
       }
       
       if (!validationResult.passed) {
