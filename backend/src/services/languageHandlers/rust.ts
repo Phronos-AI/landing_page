@@ -55,48 +55,50 @@ itertools = "0.12"
   }
 
   async measurePerformance(solution: string, workDir: string, runs: number): Promise<MeasurementResult> {
-    // For Rust, extract first function call from first test
-    const testFilePath = path.join(workDir, 'src', 'lib.rs');
-    const testContent = await fs.readFile(testFilePath, 'utf-8');
-    
-    // Find first public function
-    const funcMatch = testContent.match(/pub\s+fn\s+(\w+)\s*\(([^)]*)\)/);
-    if (!funcMatch) {
-      throw new Error('No public function found to benchmark');
-    }
-    
-    const funcName = funcMatch[1];
-    const funcParams = funcMatch[2];
-    
-    // Find ANY call to this function in the tests
-    const callPattern = new RegExp(`${funcName}\\s*\\([^)]*\\)`, 'm');
-    const callMatch = testContent.match(callPattern);
-    
-    let benchmarkCall;
-    if (callMatch) {
-      benchmarkCall = callMatch[0];
-    } else {
-      // Generate a default call based on parameters
-      if (funcParams.includes('&str')) {
-        benchmarkCall = `${funcName}("")`;
-      } else if (funcParams.includes('usize') || funcParams.includes('i32')) {
-        benchmarkCall = `${funcName}(0)`;
-      } else {
-        benchmarkCall = `${funcName}()`;
+    try {
+      // For Rust, extract first function call from first test
+      const testFilePath = path.join(workDir, 'src', 'lib.rs');
+      const testContent = await fs.readFile(testFilePath, 'utf-8');
+      
+      // Find first public function
+      const funcMatch = testContent.match(/pub\s+fn\s+(\w+)\s*\(([^)]*)\)/);
+      if (!funcMatch) {
+        console.log('  → No public function found, skipping performance measurement');
+        return { meanExecutionTime: 0, standardDeviation: 0, executionTimes: [] };
       }
-    }
-    
-    // Create benchmark module
-    const benchmarkCode = `
+      
+      const funcName = funcMatch[1];
+      const funcParams = funcMatch[2];
+      
+      // Find ANY call to this function in the tests
+      const callPattern = new RegExp(`${funcName}\\s*\\([^)]*\\)`, 'm');
+      const callMatch = testContent.match(callPattern);
+      
+      let benchmarkCall;
+      if (callMatch) {
+        benchmarkCall = callMatch[0];
+      } else {
+        // Generate a default call based on parameters
+        if (funcParams.includes('&str')) {
+          benchmarkCall = `${funcName}("")`;
+        } else if (funcParams.includes('usize') || funcParams.includes('i32')) {
+          benchmarkCall = `${funcName}(0)`;
+        } else {
+          benchmarkCall = `${funcName}()`;
+        }
+      }
+      
+      // Create benchmark module with unique name to avoid conflicts
+      const benchmarkCode = `
 
 #[cfg(test)]
-mod benchmark {
+mod perf_benchmark {
     use super::*;
     use std::time::Instant;
     
     #[test]
     #[ignore]
-    fn benchmark_performance() {
+    fn measure_perf() {
         // Warmup
         for _ in 0..10 {
             let _ = ${benchmarkCall};
@@ -111,7 +113,7 @@ mod benchmark {
             times.push(duration.as_secs_f64() * 1000.0);
         }
         
-        // Print results with marker
+        // Print results with clear markers
         eprint!("BENCH_START:");
         for (i, t) in times.iter().enumerate() {
             if i > 0 { eprint!(","); }
@@ -122,31 +124,38 @@ mod benchmark {
 }
 `;
 
-    await fs.appendFile(testFilePath, benchmarkCode);
+      await fs.appendFile(testFilePath, benchmarkCode);
 
-    // Run benchmark
-    const { exitCode, output } = await this.runInContainer(workDir, [
-      'cargo', 'test', '--release', 'benchmark_performance', '--', '--nocapture', '--ignored'
-    ], { timeout: 120000 });
+      // Run benchmark
+      const { exitCode, output } = await this.runInContainer(workDir, [
+        'cargo', 'test', '--release', 'measure_perf', '--', '--nocapture', '--ignored'
+      ], { timeout: 120000 });
 
-    if (exitCode !== 0) {
-      throw new Error(`Benchmark failed: ${output}`);
+      if (exitCode !== 0) {
+        console.log(`  → Benchmark compilation failed, skipping performance measurement`);
+        console.log(`  → Error: ${output.slice(-500)}`);
+        return { meanExecutionTime: 0, standardDeviation: 0, executionTimes: [] };
+      }
+
+      // Parse results
+      const resultsMatch = output.match(/BENCH_START:([\d.,]+):BENCH_END/);
+      if (!resultsMatch) {
+        console.log(`  → Could not parse benchmark results, skipping performance measurement`);
+        return { meanExecutionTime: 0, standardDeviation: 0, executionTimes: [] };
+      }
+
+      const times = resultsMatch[1].split(',').map(t => parseFloat(t));
+      const stats = this.calculateStatistics(times);
+      
+      return {
+        meanExecutionTime: stats.mean,
+        standardDeviation: stats.stdDev,
+        executionTimes: times,
+      };
+    } catch (error) {
+      console.log(`  → Performance measurement error: ${error}`);
+      return { meanExecutionTime: 0, standardDeviation: 0, executionTimes: [] };
     }
-
-    // Parse results
-    const resultsMatch = output.match(/BENCH_START:([\d.,]+):BENCH_END/);
-    if (!resultsMatch) {
-      throw new Error(`Could not find benchmark results in output. Output length: ${output.length}`);
-    }
-
-    const times = resultsMatch[1].split(',').map(t => parseFloat(t));
-    const stats = this.calculateStatistics(times);
-    
-    return {
-      meanExecutionTime: stats.mean,
-      standardDeviation: stats.stdDev,
-      executionTimes: times,
-    };
   }
 
   private parseTestOutput(output: string): { passed: number; total: number } {

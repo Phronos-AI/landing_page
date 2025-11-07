@@ -64,13 +64,15 @@ class OpenRouterService {
     // Rust-specific instructions since tests go in same lib.rs file
     const rustSpecific = language === 'rust' ? `
 
-RUST-SPECIFIC RULES:
-- DO NOT add "use crate::" or "use solution::" imports for the solution functions
-- Solution code will be in the SAME lib.rs file ABOVE the tests
-- Tests can directly call functions without any imports (they're in the same module)
-- DO NOT use external crates not in dependencies (no lazy_static, no once_cell)
-- Only use these crates: serde, serde_json, sha2, regex, rand, base64, hex, itertools
-- Start with #[cfg(test)] and mod tests { ... } block` : '';
+RUST-SPECIFIC RULES (CRITICAL - MUST FOLLOW):
+- DO NOT add ANY imports for solution functions (no "use crate::", no "use solution::", no "use super::")
+- Solution functions are in the SAME file and are directly accessible
+- ALLOWED crates ONLY: serde, serde_json, sha2, regex, rand, base64, hex, itertools
+- FORBIDDEN crates: lazy_static, once_cell, chrono, tokio, reqwest, anyhow, thiserror, uuid
+- Check ALL use statements - make sure they only use allowed crates
+- Ensure ALL braces, brackets, and parentheses are properly closed
+- Start with: #[cfg(test)]\nmod tests {\n    use super::*;\n\n    #[test]\n    fn test_...
+- Every use statement must have matching braces: use rand::{Rng, thread_rng}; NOT use rand::{Rng` : '';
 
     const importInstruction = language === 'rust' 
       ? 'DO NOT import solution functions - they are in the same file, just call them directly'
@@ -118,10 +120,14 @@ Return ONLY the test code.`,
     // Add language-specific hints by checking tests
     let languageHints = '';
     if (tests.includes('#[test]') || tests.includes('#[cfg(test)]')) {
-      languageHints = `\n\nRUST CONSTRAINTS:
-- Available crates: serde, serde_json, sha2, regex, rand, base64, hex, itertools
-- DO NOT use: lazy_static, once_cell, chrono, tokio, reqwest, anyhow, thiserror, uuid
-- Write clean, compilable Rust code with proper syntax (no unclosed braces/delimiters)`;
+      languageHints = `\n\nRUST CONSTRAINTS (CRITICAL):
+- ALLOWED crates ONLY: serde, serde_json, sha2, regex, rand, base64, hex, itertools
+- FORBIDDEN crates: lazy_static, once_cell, chrono, tokio, reqwest, anyhow, thiserror, uuid
+- Check EVERY use statement - only use allowed crates above
+- SYNTAX: Ensure ALL braces { }, brackets [ ], and parentheses ( ) are properly closed
+- SYNTAX: Every use statement must be complete: use rand::{Rng, thread_rng}; (with closing brace and semicolon)
+- Double-check your code before returning - count opening and closing delimiters
+- If you need a crate not in the allowed list, find an alternative approach using allowed crates or std library`;
     }
 
     const response = await this.complete({
