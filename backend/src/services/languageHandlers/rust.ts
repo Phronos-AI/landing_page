@@ -164,14 +164,30 @@ mod perf_benchmark {
         for _ in 0..10 {
             let _ = ${benchmarkCall};
         }
-        
-        // Benchmark
+
+        // Calibrate repeats to ~20ms per batch (cap at 1_000_000)
+        let mut repeats: usize = 1;
+        loop {
+            let start = Instant::now();
+            for _ in 0..repeats {
+                let _ = ${benchmarkCall};
+            }
+            let elapsed = start.elapsed();
+            if elapsed.as_millis() >= 20 || repeats >= 1_000_000 {
+                break;
+            }
+            repeats *= 10;
+        }
+
+        // Benchmark: record per-call ms
         let mut times = Vec::new();
         for _ in 0..${runs} {
             let start = Instant::now();
-            let _ = ${benchmarkCall};
+            for _ in 0..repeats {
+                let _ = ${benchmarkCall};
+            }
             let duration = start.elapsed();
-            times.push(duration.as_secs_f64() * 1000.0);
+            times.push((duration.as_secs_f64() * 1000.0) / repeats as f64);
         }
         
         // Print results in a single JSON line to stdout for reliable parsing
