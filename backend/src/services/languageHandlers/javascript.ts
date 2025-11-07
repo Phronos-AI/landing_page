@@ -7,16 +7,24 @@ export class JavaScriptHandler extends BaseHandler {
   protected image = 'node:20-slim';
 
   async validateSolution(solution: string, tests: string, workDir: string): Promise<ValidationResult> {
+    // Clean code: strip markdown fences
+    const cleanedSolution = this.stripMarkdown(solution);
+    const cleanedTests = this.stripMarkdown(tests);
+
     // Write solution and test files
-    await fs.writeFile(path.join(workDir, 'solution.js'), solution);
-    await fs.writeFile(path.join(workDir, 'solution.test.js'), tests);
+    await fs.writeFile(path.join(workDir, 'solution.js'), cleanedSolution);
+    await fs.writeFile(path.join(workDir, 'solution.test.js'), cleanedTests);
 
     // Create package.json with Jest and common dependencies
     const packageJson = {
       name: 'test',
-      type: 'module',
+      // Use CommonJS to match AI-generated tests that use require(...)
+      type: 'commonjs',
       scripts: {
-        test: 'node --experimental-vm-modules node_modules/jest/bin/jest.js'
+        test: 'jest --verbose'
+      },
+      jest: {
+        testEnvironment: 'node'
       },
       dependencies: {
         lodash: '^4.17.21',

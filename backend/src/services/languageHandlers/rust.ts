@@ -60,10 +60,10 @@ itertools = "0.12"
       const testFilePath = path.join(workDir, 'src', 'lib.rs');
       const testContent = await fs.readFile(testFilePath, 'utf-8');
       
-      // Find first public function
-      const funcMatch = testContent.match(/pub\s+fn\s+(\w+)\s*\(([^)]*)\)/);
+    // Find first function (public or private)
+    const funcMatch = testContent.match(/(?:pub\s+)?fn\s+(\w+)\s*\(([^)]*)\)/);
       if (!funcMatch) {
-        console.log('  → No public function found, skipping performance measurement');
+      console.log('  → No function found, skipping performance measurement');
         return { meanExecutionTime: 0, standardDeviation: 0, executionTimes: [] };
       }
       

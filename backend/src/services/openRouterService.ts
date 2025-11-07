@@ -74,9 +74,12 @@ RUST-SPECIFIC RULES (CRITICAL - MUST FOLLOW):
 - Start with: #[cfg(test)]\nmod tests {\n    use super::*;\n\n    #[test]\n    fn test_...
 - Every use statement must have matching braces: use rand::{Rng, thread_rng}; NOT use rand::{Rng` : '';
 
-    const importInstruction = language === 'rust' 
-      ? 'DO NOT import solution functions - they are in the same file, just call them directly'
-      : 'Import the solution from an external module (e.g., "from solution import ..." for Python)';
+    let importInstruction = 'Import the solution from an external module (e.g., "from solution import ..." for Python)';
+    if (language === 'rust') {
+      importInstruction = 'DO NOT import solution functions - they are in the same file, just call them directly';
+    } else if (language === 'javascript' || language === 'typescript') {
+      importInstruction = 'Use CommonJS style: tests import with const { fn } = require("./solution"); solution exports with module.exports = { fn }';
+    }
 
     const response = await this.complete({
       model: "anthropic/claude-sonnet-4.5",
@@ -128,6 +131,11 @@ Return ONLY the test code.`,
 - SYNTAX: Every use statement must be complete: use rand::{Rng, thread_rng}; (with closing brace and semicolon)
 - Double-check your code before returning - count opening and closing delimiters
 - If you need a crate not in the allowed list, find an alternative approach using allowed crates or std library`;
+    } else if (tests.includes('describe(') || tests.includes('test(') || tests.includes('require(')) {
+      languageHints = `\n\nJAVASCRIPT CONSTRAINTS (CRITICAL):
+- Use CommonJS modules: export with module.exports = { yourFunction }; and import in tests with const { yourFunction } = require('./solution');
+- Do NOT wrap code in markdown fences (no \\\`\\\`\\\`js)
+- Keep syntax Node 20 compatible (no TypeScript types, no import/export ESM unless explicitly requested)`;
     }
 
     const response = await this.complete({
