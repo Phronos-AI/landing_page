@@ -34,8 +34,25 @@ itertools = "0.12"
     // Create src directory
     await fs.mkdir(path.join(workDir, 'src'), { recursive: true });
 
+    // Ensure tests are in a proper #[cfg(test)] mod tests { ... } block and braces are balanced
+    let fixedTests = cleanTests.trim();
+    if (fixedTests) {
+      if (!/mod\s+tests\s*\{/.test(fixedTests)) {
+        fixedTests = `#[cfg(test)]
+mod tests {
+    use super::*;
+${fixedTests}
+}`;
+      }
+      const opens = (fixedTests.match(/\{/g) || []).length;
+      const closes = (fixedTests.match(/\}/g) || []).length;
+      if (opens > closes) {
+        fixedTests += '\n' + '}'.repeat(opens - closes) + '\n';
+      }
+    }
+
     // Combine solution and tests in lib.rs
-    const libRs = `${cleanSolution}\n\n${cleanTests}`;
+    const libRs = `${cleanSolution}\n\n${fixedTests}`;
     await fs.writeFile(path.join(workDir, 'src', 'lib.rs'), libRs);
 
     // Run tests with longer timeout for first-time dependency compilation

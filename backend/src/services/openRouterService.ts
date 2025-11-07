@@ -71,8 +71,10 @@ RUST-SPECIFIC RULES (CRITICAL - MUST FOLLOW):
 - FORBIDDEN crates: lazy_static, once_cell, chrono, tokio, reqwest, anyhow, thiserror, uuid
 - Check ALL use statements - make sure they only use allowed crates
 - Ensure ALL braces, brackets, and parentheses are properly closed
-- Start with: #[cfg(test)]\nmod tests {\n    use super::*;\n\n    #[test]\n    fn test_...
-- Every use statement must have matching braces: use rand::{Rng, thread_rng}; NOT use rand::{Rng` : '';
+- Start with: #[cfg(test)] and mod tests { use super::*; ... }
+- Every use statement must have matching braces: use rand::{Rng, thread_rng}; NOT use rand::{Rng}
+- End the tests module with a final '}' so the code compiles
+` : '';
 
     let importInstruction = 'Import the solution from an external module (e.g., "from solution import ..." for Python)';
     if (language === 'rust') {
