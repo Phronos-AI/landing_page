@@ -1,6 +1,3 @@
-# Phronos Monorepo - Root .gitignore
-# Applies to both /homepage and /ide projects
-
 # Logs
 logs
 *.log
@@ -10,19 +7,17 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
-# Dependencies
 node_modules
-bun.lockb
-
-# Build outputs
 dist
 dist-ssr
+.netlify
+.output
+.vinxi
+.tanstack/**
+.nitro
 *.local
 
-# Environment variables
-.env
-.env.local
-.env.production
+.dev.vars
 
 # Editor directories and files
 .vscode/*
@@ -34,27 +29,3 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
-
-# OS files
-.DS_Store
-Thumbs.db
-
-# Tool-specific folders
-.bolt
-
-# Internal documentation files (not needed in public repo)
-DEPLOYMENT_SUMMARY.md
-NETLIFY_DEPLOYMENT.md
-IMPLEMENTATION_COMPLETED.md
-IMPLEMENTATION_SUMMARY.md
-
-# Note: build-all.sh and netlify.toml are kept visible - needed for deployment
-
-# IDE internal documentation (keep main README visible)
-ide/PHRONOS_IDE_README.md
-ide/IMPLEMENTATION_SUMMARY.md
-ide/MULTI_LANGUAGE_GUIDE.md
-ide/QUICKSTART.md
-
-# Whitepaper (keep private for now)
-whitepaper.md
