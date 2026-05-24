@@ -221,7 +221,22 @@ Expected final flow:
 
 Duplicate signups should return success without revealing whether the email was already stored.
 
-## 9. Final Checks
+## 9. Supabase Health Check
+
+The project includes a Netlify Scheduled Function at `netlify/functions/supabase-health.ts`.
+
+It runs once per day and performs a small read-only query against `waitlist_signups`. This gives Netlify logs a daily database connectivity signal and helps keep the Supabase project active while the site is early.
+
+It does not:
+
+- add fake signups
+- change existing rows
+- send emails
+- affect visitors
+
+This is a lightweight safeguard, not a replacement for a paid Supabase plan if signup capture becomes business-critical.
+
+## 10. Final Checks
 
 Before production launch:
 
