@@ -64,7 +64,7 @@ function Index() {
 
       {/* Hero */}
       <section className="relative z-10 flex flex-col items-center justify-center px-6 flex-1 text-center">
-        <h1 className="font-display text-[clamp(2.5rem,7vw,6rem)] leading-[1.05] tracking-tight max-w-5xl animate-fade-up">
+        <h1 className="hero-title text-[clamp(2.5rem,7vw,6rem)] max-w-5xl animate-fade-up">
           AI, rebuilt
           <br />
           from the bit up.

@@ -152,6 +152,13 @@
     font-weight: 400;
     letter-spacing: -0.02em;
   }
+
+  .hero-title {
+    font-family: "Cormorant Garamond", Georgia, serif;
+    font-weight: 600;
+    letter-spacing: -0.045em;
+    line-height: 0.98;
+  }
 }
 
 @keyframes fade-up {
